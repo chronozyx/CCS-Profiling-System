@@ -1,0 +1,54 @@
+/* ── Instructional ── */
+.instructional-container { max-width: 1400px; margin: 0 auto; }
+
+.instructional-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 18px;
+}
+
+.material-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+
+.material-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-tertiary); border: 1px solid var(--border-color);
+  border-left: 3px solid var(--primary-orange);
+  border-radius: var(--radius-md);
+  transition: all .25s; cursor: pointer;
+}
+.material-item:hover {
+  transform: translateX(5px);
+  background: linear-gradient(135deg,#fff5f0,#ffe5d9);
+  border-left-width: 5px; box-shadow: var(--shadow-sm);
+}
+.dark .material-item:hover { background: var(--bg-secondary); }
+
+.material-icon {
+  width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+  background: var(--bg-secondary); color: var(--primary-orange);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-xs); border: 1px solid var(--border-color);
+}
+.material-info { flex: 1; min-width: 0; }
+.material-info strong { display: block; font-size: .875rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.material-info p     { margin: 3px 0 0; font-size: .78rem; color: var(--text-secondary); }
+.material-info small { font-size: .72rem; color: var(--text-tertiary); }
+
+/* Mapping table */
+.mapping-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.mapping-table th {
+  padding: 10px 14px; text-align: left; font-size: .75rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--text-tertiary);
+  background: var(--bg-tertiary); border-bottom: 1px solid var(--border-color);
+}
+.mapping-table td { padding: 10px 14px; border-bottom: 1px solid var(--border-color); font-size: .875rem; color: var(--text-primary); }
+.mapping-table tbody tr:hover td { background: var(--bg-tertiary); }
+.mapping-table tbody tr:last-child td { border-bottom: none; }
+
+@media (max-width: 768px) {
+  .instructional-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .material-item { flex-wrap: wrap; }
+}

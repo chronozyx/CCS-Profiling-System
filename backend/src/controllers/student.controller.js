@@ -1,0 +1,307 @@
+import pool from '../config/db.js';
+import { parseId, requireString, requireEmail, requireEnum, requireInt, sanitizeBody, sanitizeList } from '../middlewares/sanitize.js';
+
+const GENDERS    = ['Male', 'Female', 'Other'];
+const PROGRAMS   = ['BSIT', 'BSCS', 'BSIS'];
+const YEAR_LEVELS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+
+const parseList = (val) => (val ? val.split(',').map(s => s.trim()).filter(Boolean) : []);
+
+const format = (row) => ({
+  ...row,
+  skills:       parseList(row.skills),
+  activities:   parseList(row.activities),
+  affiliations: parseList(row.affiliations),
+  violations:   parseList(row.violations),
+});
+
+// Resolve faculty.id (profile) from users.id — returns null if not found
+const getFacultyProfileId = async (userId) => {
+  const [[row]] = await pool.query('SELECT id FROM faculty WHERE user_id = ?', [userId]);
+  return row?.id ?? null;
+};
+
+// ── GET /api/students ──────────────────────────────────────────────────────
+// Admin   → all students + optional filters
+// Faculty → only students assigned to them via student_faculty junction
+// Student → only their own record
+export const getStudents = async (req, res) => {
+  try {
+    const { role, id: userId } = req.user;
+    const { search, program, yearLevel, skill, gender } = req.query;
+
+    let sql    = 'SELECT s.* FROM students s';
+    const params = [];
+
+    if (role === 'student') {
+      sql += ' WHERE s.user_id = ?';
+      params.push(userId);
+    } else if (role === 'faculty') {
+      // JOIN through junction — faculty sees all students linked to them
+      sql += ` INNER JOIN student_faculty sf ON sf.student_id = s.id
+               INNER JOIN users u ON u.id = sf.faculty_id
+               WHERE u.id = ?`;
+      params.push(userId);
+    } else {
+      sql += ' WHERE 1=1';
+    }
+
+    // Optional filters — only for admin/faculty (student is already scoped to 1 row)
+    if (role !== 'student') {
+      if (search) {
+        sql += ' AND (s.first_name LIKE ? OR s.last_name LIKE ? OR s.student_id LIKE ? OR s.program LIKE ? OR s.skills LIKE ? OR s.affiliations LIKE ?)';
+        const q = `%${search}%`;
+        params.push(q, q, q, q, q, q);
+      }
+      if (program   && program   !== 'All')       { sql += ' AND s.program = ?';              params.push(program); }
+      if (yearLevel && yearLevel !== 'All')        { sql += ' AND s.year_level = ?';           params.push(yearLevel); }
+      if (skill     && skill     !== 'All Skills') { sql += ' AND FIND_IN_SET(?, s.skills)';   params.push(skill); }
+      if (gender    && gender    !== 'All')        { sql += ' AND s.gender = ?';               params.push(gender); }
+    }
+
+    sql += ' ORDER BY s.added_date DESC';
+    const [rows] = await pool.query(sql, params);
+    res.json(rows.map(format));
+  } catch (err) {
+    console.error('[students] getStudents:', err.message);
+    res.status(500).json({ message: 'Failed to fetch students' });
+  }
+};
+
+// ── GET /api/students/:id ──────────────────────────────────────────────────
+export const getStudentById = async (req, res) => {
+  try {
+    const { role, id: userId } = req.user;
+    const studentId = parseId(req.params.id);
+
+    let sql    = 'SELECT s.* FROM students s';
+    const params = [studentId];
+
+    if (role === 'student') {
+      sql += ' WHERE s.id = ? AND s.user_id = ?';
+      params.push(userId);
+    } else if (role === 'faculty') {
+      sql += ` INNER JOIN student_faculty sf ON sf.student_id = s.id
+               WHERE s.id = ? AND sf.faculty_id = ?`;
+      params.push(userId);
+    } else {
+      sql += ' WHERE s.id = ?';
+    }
+
+    const [rows] = await pool.query(sql, params);
+
+    if (!rows.length)
+      return role === 'admin'
+        ? res.status(404).json({ message: 'Student not found' })
+        : res.status(403).json({ message: 'Forbidden' });
+
+    // Attach assigned faculty list
+    const [faculty] = await pool.query(
+      `SELECT u.id, u.name, f.employee_id, f.title, f.department
+       FROM student_faculty sf
+       JOIN users   u ON u.id = sf.faculty_id
+       JOIN faculty f ON f.user_id = u.id
+       WHERE sf.student_id = ?`,
+      [studentId]
+    );
+
+    res.json({ ...format(rows[0]), faculty });
+  } catch (err) {
+    res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to fetch student' });
+  }
+};
+
+// ── PUT /api/students/:id ──────────────────────────────────────────────────
+export const updateStudent = async (req, res) => {
+  try {
+    const { role, id: userId } = req.user;
+    const studentId = parseId(req.params.id);
+
+    // Access check via junction for faculty
+    let checkSql    = 'SELECT id FROM students WHERE id = ?';
+    const checkParams = [studentId];
+
+    if (role === 'student') {
+      checkSql += ' AND user_id = ?';
+      checkParams.push(userId);
+    } else if (role === 'faculty') {
+      checkSql = `SELECT s.id FROM students s
+                  INNER JOIN student_faculty sf ON sf.student_id = s.id
+                  WHERE s.id = ? AND sf.faculty_id = ?`;
+      checkParams.push(userId);
+    }
+
+    const [check] = await pool.query(checkSql, checkParams);
+    if (!check.length)
+      return role === 'admin'
+        ? res.status(404).json({ message: 'Student not found' })
+        : res.status(403).json({ message: 'Forbidden' });
+
+    const b = sanitizeBody(req.body);
+    const first_name   = requireString(b.first_name,  'First name',  100);
+    const last_name    = requireString(b.last_name,   'Last name',   100);
+    const email        = requireEmail(b.email);
+    const gender       = requireEnum(b.gender || 'Male', 'Gender', GENDERS);
+    const middle_name  = b.middle_name ? requireString(b.middle_name, 'Middle name', 100) : '';
+    const phone        = b.phone       ? requireString(b.phone,       'Phone',        20) : '';
+    const address      = b.address     ? requireString(b.address,     'Address',     500) : '';
+    const program      = requireEnum(b.program    || 'BSIT',     'Program',    PROGRAMS);
+    const year_level   = requireEnum(b.year_level || '1st Year', 'Year level', YEAR_LEVELS);
+    const section      = requireString(b.section, 'Section', 10);
+    const age          = requireInt(b.age ?? 18, 'Age', 15, 60);
+    const skills       = sanitizeList(b.skills).join(',');
+    const activities   = sanitizeList(b.activities).join(',');
+    const affiliations = sanitizeList(b.affiliations).join(',');
+    const violations   = sanitizeList(b.violations).join(',');
+
+    await pool.query(
+      `UPDATE students SET
+        first_name=?,last_name=?,middle_name=?,age=?,gender=?,email=?,phone=?,address=?,
+        program=?,year_level=?,section=?,skills=?,activities=?,affiliations=?,violations=?
+       WHERE id=?`,
+      [first_name, last_name, middle_name, age, gender, email, phone, address,
+       program, year_level, section, skills, activities, affiliations, violations, studentId]
+    );
+
+    const [rows] = await pool.query('SELECT * FROM students WHERE id = ?', [studentId]);
+    res.json(format(rows[0]));
+  } catch (err) {
+    res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to update student' });
+  }
+};
+
+// ── POST /api/students — admin only ───────────────────────────────────────
+export const createStudent = async (req, res) => {
+  try {
+    const b = sanitizeBody(req.body);
+    const student_id   = requireString(b.student_id,  'Student ID',  50);
+    const first_name   = requireString(b.first_name,  'First name',  100);
+    const last_name    = requireString(b.last_name,   'Last name',   100);
+    const email        = requireEmail(b.email);
+    const program      = requireEnum(b.program    || 'BSIT',     'Program',    PROGRAMS);
+    const year_level   = requireEnum(b.year_level || '1st Year', 'Year level', YEAR_LEVELS);
+    const section      = requireString(b.section, 'Section', 10);
+    const user_id      = parseId(b.user_id);
+    const gender       = requireEnum(b.gender || 'Male', 'Gender', GENDERS);
+    const middle_name  = b.middle_name ? requireString(b.middle_name, 'Middle name', 100) : '';
+    const phone        = b.phone       ? requireString(b.phone,       'Phone',        20) : '';
+    const address      = b.address     ? requireString(b.address,     'Address',     500) : '';
+    const age          = requireInt(b.age ?? 18, 'Age', 15, 60);
+    const skills       = sanitizeList(b.skills).join(',');
+    const activities   = sanitizeList(b.activities).join(',');
+    const affiliations = sanitizeList(b.affiliations).join(',');
+    const violations   = sanitizeList(b.violations).join(',');
+
+    // faculty_ids is an array of users.id with role='faculty'
+    const facultyIds = Array.isArray(b.faculty_ids)
+      ? b.faculty_ids.map(Number).filter(n => Number.isInteger(n) && n > 0)
+      : [];
+
+    const [result] = await pool.query(
+      `INSERT INTO students
+        (user_id,student_id,first_name,last_name,middle_name,age,gender,email,phone,address,
+         program,year_level,section,skills,activities,affiliations,violations,added_date)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURDATE())`,
+      [user_id, student_id, first_name, last_name, middle_name, age, gender, email,
+       phone, address, program, year_level, section, skills, activities, affiliations, violations]
+    );
+    const newStudentId = result.insertId;
+
+    // Insert junction rows for each assigned faculty
+    if (facultyIds.length) {
+      const vals = facultyIds.map(fid => [newStudentId, fid]);
+      await pool.query('INSERT IGNORE INTO student_faculty (student_id, faculty_id) VALUES ?', [vals]);
+    }
+
+    const [rows] = await pool.query('SELECT * FROM students WHERE id = ?', [newStudentId]);
+    res.status(201).json(format(rows[0]));
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY')
+      return res.status(400).json({ message: 'Student ID or email already exists' });
+    res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to create student' });
+  }
+};
+
+// ── DELETE /api/students/:id — admin only ─────────────────────────────────
+export const deleteStudent = async (req, res) => {
+  try {
+    const id = parseId(req.params.id);
+    const [result] = await pool.query('DELETE FROM students WHERE id = ?', [id]);
+    if (!result.affectedRows) return res.status(404).json({ message: 'Student not found' });
+    res.json({ message: 'Student deleted' });
+  } catch (err) {
+    res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to delete student' });
+  }
+};
+
+// ── POST /api/students/:id/faculty — admin only ───────────────────────────
+// Assign one or more faculty to a student
+export const assignFaculty = async (req, res) => {
+  try {
+    const studentId  = parseId(req.params.id);
+    const facultyIds = Array.isArray(req.body.faculty_ids)
+      ? req.body.faculty_ids.map(Number).filter(n => Number.isInteger(n) && n > 0)
+      : [];
+
+    if (!facultyIds.length)
+      return res.status(400).json({ message: 'faculty_ids array is required' });
+
+    // Verify all provided IDs are actually faculty users
+    const [valid] = await pool.query(
+      `SELECT id FROM users WHERE id IN (?) AND role = 'faculty'`, [facultyIds]
+    );
+    if (valid.length !== facultyIds.length)
+      return res.status(400).json({ message: 'One or more faculty IDs are invalid' });
+
+    const vals = facultyIds.map(fid => [studentId, fid]);
+    await pool.query('INSERT IGNORE INTO student_faculty (student_id, faculty_id) VALUES ?', [vals]);
+
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, f.employee_id, f.title, f.department
+       FROM student_faculty sf
+       JOIN users   u ON u.id = sf.faculty_id
+       JOIN faculty f ON f.user_id = u.id
+       WHERE sf.student_id = ?`, [studentId]
+    );
+    res.json({ student_id: studentId, faculty: rows });
+  } catch (err) {
+    res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to assign faculty' });
+  }
+};
+
+// ── DELETE /api/students/:id/faculty/:facultyId — admin only ─────────────
+export const removeFaculty = async (req, res) => {
+  try {
+    const studentId = parseId(req.params.id);
+    const facultyId = parseId(req.params.facultyId);
+
+    const [result] = await pool.query(
+      'DELETE FROM student_faculty WHERE student_id = ? AND faculty_id = ?',
+      [studentId, facultyId]
+    );
+    if (!result.affectedRows)
+      return res.status(404).json({ message: 'Assignment not found' });
+
+    res.json({ message: 'Faculty unassigned from student' });
+  } catch (err) {
+    res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to remove faculty' });
+  }
+};
+
+// ── GET /api/students/stats — admin only ──────────────────────────────────
+export const getStudentStats = async (_req, res) => {
+  try {
+    const [[{ total }]] = await pool.query('SELECT COUNT(*) as total FROM students');
+    const [skillRows]   = await pool.query('SELECT skills FROM students WHERE skills IS NOT NULL');
+    const allSkills     = skillRows.flatMap(r => parseList(r.skills));
+    const skillCount    = allSkills.reduce((a, s) => { a[s] = (a[s]||0)+1; return a; }, {});
+    const topSkill      = Object.entries(skillCount).sort((a,b) => b[1]-a[1])[0]?.[0] || '—';
+    const categories    = Object.keys(skillCount).length;
+    const [recent]      = await pool.query(
+      'SELECT first_name, last_name, added_date FROM students ORDER BY added_date DESC LIMIT 3'
+    );
+    res.json({ total, topSkill, skillCategories: categories, recentStudents: recent });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch stats' });
+  }
+};

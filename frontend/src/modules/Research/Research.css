@@ -1,0 +1,60 @@
+/* ── Research ── */
+.research-container { max-width: 1400px; margin: 0 auto; }
+
+.research-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.research-card {
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 20px;
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+  box-shadow: var(--shadow-xs);
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.research-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--primary-orange), var(--light-orange));
+  transform: scaleX(0); transform-origin: left; transition: transform .3s;
+}
+.research-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); border-color: rgba(255,107,53,.35); }
+.research-card:hover::before { transform: scaleX(1); }
+
+.research-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.research-card-top h3 { margin: 0; font-size: .95rem; font-weight: 700; color: var(--text-primary); flex: 1; line-height: 1.4; }
+
+.research-rank-badge {
+  width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--primary-orange), var(--dark-orange));
+  color: white; font-weight: 800; font-size: .9rem;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 3px 8px rgba(255,107,53,.3);
+}
+
+.research-meta { display: flex; flex-direction: column; gap: 6px; }
+.research-meta-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: .8rem; color: var(--text-secondary);
+}
+.research-meta-row svg { color: var(--primary-orange); flex-shrink: 0; }
+
+.research-score-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--bg-tertiary); border: 1px solid var(--border-color);
+  border-radius: var(--radius-md); padding: 10px 14px; margin-top: auto;
+}
+.research-score-bar span:first-child { font-size: .8rem; color: var(--text-tertiary); font-weight: 600; }
+.research-score-val { font-size: 1.3rem; font-weight: 800; color: var(--primary-orange); }
+
+/* Filters */
+.research-filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 1.25rem; }
+
+@media (max-width: 640px) {
+  .research-grid { grid-template-columns: 1fr; }
+  .research-filters { flex-direction: column; }
+}

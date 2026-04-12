@@ -1,0 +1,55 @@
+/* ── Scheduling ── */
+.scheduling-container { max-width: 1600px; margin: 0 auto; }
+h1 {
+  font-size: 1.85rem; font-weight: 800;
+  letter-spacing: -.04em; margin: 0;
+  background: linear-gradient(135deg, var(--text-primary) 30%, var(--primary-orange) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.time-types-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.time-type-tile {
+  background: var(--bg-secondary); border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-lg); padding: 16px;
+  transition: all .25s; cursor: default;
+}
+.time-type-tile:hover { border-color: rgba(255,107,53,.4); box-shadow: var(--shadow-sm); transform: translateY(-2px); }
+.time-type-tile .tt-label { font-weight: 700; color: var(--primary-orange); font-size: .85rem; margin-bottom: 4px; }
+.time-type-tile .tt-desc  { font-size: .8rem; color: var(--text-tertiary); }
+
+/* Type badges */
+.type-badge {
+  display: inline-flex; align-items: center;
+  padding: 4px 10px; border-radius: 50px; font-size: .72rem; font-weight: 700;
+  border: 1px solid transparent;
+}
+.type-badge.lecture     { background: #eff6ff; color: #3b82f6; border-color: #bfdbfe; }
+.type-badge.laboratory  { background: #faf5ff; color: #7c3aed; border-color: #ddd6fe; }
+.type-badge.pure, .type-badge.pure-lecture { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+.dark .type-badge.lecture    { background: #1e3a5f; color: #93c5fd; border-color: #1e40af; }
+.dark .type-badge.laboratory { background: #2e1065; color: #c4b5fd; border-color: #4c1d95; }
+.dark .type-badge.pure, .dark .type-badge.pure-lecture { background: #14532d; color: #86efac; border-color: #166534; }
+
+/* Capacity */
+.cap-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 90px; }
+.cap-nums { font-size: .8rem; color: var(--text-secondary); }
+.cap-bar  { height: 6px; background: var(--bg-tertiary); border-radius: 50px; overflow: hidden; }
+.cap-fill { height: 100%; border-radius: 50px; transition: width .4s; }
+.cap-fill.available   { background: linear-gradient(90deg,#22c55e,#16a34a); }
+.cap-fill.near-full   { background: linear-gradient(90deg,#fbbf24,#d97706); }
+.cap-fill.overcapacity{ background: linear-gradient(90deg,#f87171,#ef4444); }
+
+.room-cell { display: flex; flex-direction: column; }
+.room-cell small { font-size: .72rem; color: var(--text-tertiary); }
+
+@media (max-width: 900px) {
+  .time-types-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .time-types-grid { grid-template-columns: 1fr; }
+}
