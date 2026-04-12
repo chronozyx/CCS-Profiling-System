@@ -7,7 +7,7 @@ import {
   FaTh, FaTable, FaTimes, FaUserGraduate,
   FaPhone, FaEnvelope, FaMapMarkerAlt, FaTag, FaUsers,
   FaExclamationTriangle, FaStar, FaArrowLeft, FaSync,
-  FaShieldAlt, FaChalkboardTeacher, FaUserCircle,
+  FaShieldAlt, FaChalkboardTeacher, FaUserCircle, FaBook,
 } from 'react-icons/fa';
 
 const PROGRAMS    = ['All','BSIT','BSCS'];
@@ -108,8 +108,19 @@ function TagInput({ label, values, onChange, placeholder }) {
   );
 }
 
-function StudentModal({ mode, form, setForm, onSubmit, onClose, saving }) {
+const TYPE_LABEL = { LECTURE:'Lecture', LABORATORY:'Laboratory', PURE_LECTURE:'Pure Lecture' };
+const TYPE_CLASS = { LECTURE:'lecture', LABORATORY:'laboratory', PURE_LECTURE:'pure' };
+
+function StudentModal({ mode, form, setForm, schedules, onSubmit, onClose, saving }) {
   const f = (k,v) => setForm(p=>({...p,[k]:v}));
+
+  const toggleSchedule = (id) => {
+    const ids = form.schedule_ids || [];
+    setForm(p => ({
+      ...p,
+      schedule_ids: ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id],
+    }));
+  };
   return (
     <div className="sp-modal-overlay" onClick={onClose}>
       <div className="sp-modal" onClick={e=>e.stopPropagation()}>
@@ -155,6 +166,37 @@ function StudentModal({ mode, form, setForm, onSubmit, onClose, saving }) {
           <TagInput label="Non-Academic Activities" values={form.activities} onChange={v=>f('activities',v)} placeholder="e.g. Hackathon Club"/>
           <TagInput label="Affiliations" values={form.affiliations} onChange={v=>f('affiliations',v)} placeholder="e.g. ICTSO"/>
           <TagInput label="Violations" values={form.violations} onChange={v=>f('violations',v)} placeholder="e.g. Tardiness (2026-01-01)"/>
+
+          {/* Enroll in subjects — only on create */}
+          {mode === 'create' && schedules.length > 0 && (
+            <>
+              <div className="sp-form-section-title">Enroll in Subjects</div>
+              <div className="sp-enroll-list">
+                {schedules.map(s => {
+                  const checked = (form.schedule_ids || []).includes(s.id);
+                  return (
+                    <label key={s.id} className={`sp-enroll-item ${checked ? 'checked' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleSchedule(s.id)}
+                      />
+                      <div className="sp-enroll-info">
+                        <span className="sp-enroll-code">{s.subject_code}</span>
+                        <span className="sp-enroll-title">{s.subject_title}</span>
+                        <span className={`sp-enroll-type sp-enroll-${TYPE_CLASS[s.subject_type] || 'lecture'}`}>
+                          {TYPE_LABEL[s.subject_type] || s.subject_type}
+                        </span>
+                        <span className="sp-enroll-meta">{s.section} · {s.day} {s.start_time}–{s.end_time}</span>
+                        <span className="sp-enroll-faculty">{s.faculty_first} {s.faculty_last}</span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
           <div className="sp-form-actions">
             <button type="button" className="btn-cancel" onClick={onClose} disabled={saving}>Cancel</button>
             <button type="submit" className="btn-primary-sp" disabled={saving}>
@@ -172,6 +214,8 @@ export default function StudentProfile() {
   const { isAdmin, isFaculty, isStudent, role } = useRole();
 
   const [students, setStudents]   = useState([]);
+  const [enrollments, setEnrollments] = useState([]);
+  const [schedules, setSchedules] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState('');
@@ -189,12 +233,18 @@ export default function StudentProfile() {
   const loadStudents = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const data = await api.getStudents();
+      const [data, scheds] = await Promise.all([
+        api.getStudents(),
+        api.getSchedules().catch(() => []),
+      ]);
       setStudents(data.map(toUI));
-      // For students, auto-open their own profile
+      setSchedules(scheds);
       if (isStudent && data.length > 0) {
-        setSelected(toUI(data[0]));
+        const ui = toUI(data[0]);
+        setSelected(ui);
         setView('detail');
+        const enr = await api.getStudentEnrollments(ui.id).catch(() => []);
+        setEnrollments(enr);
       }
     } catch(e) { setError(e.message); }
     finally { setLoading(false); }
@@ -219,9 +269,15 @@ export default function StudentProfile() {
   }),[students,search,filterProgram,filterYear,filterSkill,filterGender]);
 
   const hasFilters = search||filterProgram!=='All'||filterYear!=='All'||filterSkill!=='All Skills'||filterGender!=='All';
-  const openCreate = ()=>{ setForm({...EMPTY_FORM}); setModalMode('create'); setShowModal(true); };
+  const openCreate = ()=>{ setForm({...EMPTY_FORM, schedule_ids:[]}); setModalMode('create'); setShowModal(true); };
   const openEdit   = s =>{ setForm({...s, student_id: s.student_id||''}); setModalMode('edit'); setShowModal(true); };
-  const openDetail = s =>{ setSelected(s); setView('detail'); };
+  const openDetail = async s => {
+    setSelected(s); setView('detail');
+    try {
+      const enr = await api.getStudentEnrollments(s.id);
+      setEnrollments(enr);
+    } catch { setEnrollments([]); }
+  };
   const goBack     = ()=>{ if(isStudent) return; setView('cards'); setSelected(null); };
   const clearFilters=()=>{ setSearch('');setFilterProgram('All');setFilterYear('All');setFilterSkill('All Skills');setFilterGender('All'); };
 
@@ -239,6 +295,10 @@ export default function StudentProfile() {
     try {
       if(modalMode==='create') {
         const created = await api.createStudent(toDB(form));
+        // Enroll in selected schedules
+        if (form.schedule_ids?.length) {
+          await api.enrollStudent(created.id, form.schedule_ids);
+        }
         setStudents(prev=>[toUI(created),...prev]);
       } else {
         const updated = await api.updateStudent(form.id, toDB(form));
@@ -348,7 +408,38 @@ export default function StudentProfile() {
           )}
         </div>
 
-        {showModal && <StudentModal mode={modalMode} form={form} setForm={setForm} onSubmit={handleSubmit} onClose={()=>setShowModal(false)} saving={saving}/>}
+        {/* Enrolled Subjects */}
+        <div className="sp-detail-card" style={{marginTop:'1rem'}}>
+          <h3><FaBook/> {isStudent ? 'My Enrolled Subjects' : 'Enrolled Subjects'} ({enrollments.length})</h3>
+          {enrollments.length === 0
+            ? <span className="sp-empty">No subjects enrolled yet.</span>
+            : (
+              <div className="sp-enroll-table-wrap">
+                <table className="sp-enroll-table">
+                  <thead>
+                    <tr><th>Code</th><th>Subject</th><th>Type</th><th>Section</th><th>Faculty</th><th>Day</th><th>Time</th><th>Room</th><th>Units</th></tr>
+                  </thead>
+                  <tbody>
+                    {enrollments.map(e => (
+                      <tr key={e.enrollment_id}>
+                        <td><strong>{e.code}</strong></td>
+                        <td>{e.title}</td>
+                        <td><span className={`sp-type-badge sp-type-${TYPE_CLASS[e.type] || 'lecture'}`}>{TYPE_LABEL[e.type] || e.type}</span></td>
+                        <td>{e.section}</td>
+                        <td>{e.faculty_title} {e.faculty_first} {e.faculty_last}</td>
+                        <td>{e.day}</td>
+                        <td style={{whiteSpace:'nowrap'}}>{e.start_time}–{e.end_time}</td>
+                        <td>{e.room_code}</td>
+                        <td><strong>{e.units}</strong></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+        </div>
+
+        {showModal && <StudentModal mode={modalMode} form={form} setForm={setForm} schedules={schedules} onSubmit={handleSubmit} onClose={()=>setShowModal(false)} saving={saving}/>}
       </div>
     );
   }
@@ -490,7 +581,7 @@ export default function StudentProfile() {
         </div>
       )}
 
-      {showModal&&<StudentModal mode={modalMode} form={form} setForm={setForm} onSubmit={handleSubmit} onClose={()=>setShowModal(false)} saving={saving}/>}
+      {showModal&&<StudentModal mode={modalMode} form={form} setForm={setForm} schedules={schedules} onSubmit={handleSubmit} onClose={()=>setShowModal(false)} saving={saving}/>}
     </div>
   );
 }

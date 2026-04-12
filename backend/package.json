@@ -8,7 +8,8 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "seed": "node src/config/seed.js",
-    "seed:admin": "node src/config/admin_seed.js"
+    "seed:admin": "node src/config/admin_seed.js",
+    "fix:schedules": "node src/config/fix_missing_schedules.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

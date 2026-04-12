@@ -42,8 +42,12 @@ export const api = {
   updateStudent: (id, b) =>
     request(`/students/${id}`, { method: "PUT", body: JSON.stringify(b) }),
   deleteStudent: (id) => request(`/students/${id}`, { method: "DELETE" }),
+  getStudentEnrollments: (id) => request(`/students/${id}/enrollments`),
+  enrollStudent:   (id, scheduleIds) => request(`/students/${id}/enrollments`, { method: 'POST', body: JSON.stringify({ schedule_ids: scheduleIds }) }),
+  unenrollStudent: (id, enrollmentId) => request(`/students/${id}/enrollments/${enrollmentId}`, { method: 'DELETE' }),
   getFaculty: () => request("/faculty"),
   getMyFacultyProfile: () => request("/faculty/me"),
+  getFacultySubjects: (id) => request(`/faculty/${id}/subjects`),
   createFaculty: (b) =>
     request("/faculty", { method: "POST", body: JSON.stringify(b) }),
   updateFaculty: (id, b) =>
@@ -70,7 +74,17 @@ export const api = {
     request("/materials", { method: "POST", body: JSON.stringify(b) }),
   deleteMaterial: (id) => request(`/materials/${id}`, { method: "DELETE" }),
 
-  // Audit logs — admin only
+  // Schedules
+  getSchedules:    ()       => request('/schedules'),
+  createSchedule:  (b)      => request('/schedules',    { method: 'POST',   body: JSON.stringify(b) }),
+  updateSchedule:  (id, b)  => request(`/schedules/${id}`, { method: 'PUT', body: JSON.stringify(b) }),
+  deleteSchedule:  (id)     => request(`/schedules/${id}`, { method: 'DELETE' }),
+
+  // Subjects
+  getSubjects:    ()       => request('/subjects'),
+  createSubject:  (b)      => request('/subjects',    { method: 'POST',   body: JSON.stringify(b) }),
+  updateSubject:  (id, b)  => request(`/subjects/${id}`, { method: 'PUT', body: JSON.stringify(b) }),
+  deleteSubject:  (id)     => request(`/subjects/${id}`, { method: 'DELETE' }),
   getAuditLogs:  (p = {}) => request('/audit?' + new URLSearchParams(p)),
   getAuditStats: ()        => request('/audit/stats'),
   clearOldLogs:  (days)    => request(`/audit/old?days=${days}`, { method: 'DELETE' }),

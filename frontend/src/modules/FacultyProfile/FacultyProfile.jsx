@@ -2,8 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import './FacultyProfile.css';
 import { api } from '../../api/index.js';
 import { useAuth, useRole } from '../../context/AuthContext.jsx';
-import { FaPlus, FaEdit, FaTrash, FaEye, FaSearch, FaCheckCircle, FaExclamationTriangle, FaTimes, FaArrowLeft, FaSync } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaEye, FaSearch, FaCheckCircle, FaExclamationTriangle, FaTimes, FaArrowLeft, FaSync, FaBook } from 'react-icons/fa';
 import { MdPerson } from 'react-icons/md';
+
+const TYPE_LABEL = { LECTURE:'Lecture', LABORATORY:'Laboratory', PURE_LECTURE:'Pure Lecture' };
+const TYPE_CLASS = { LECTURE:'lecture', LABORATORY:'laboratory', PURE_LECTURE:'pure' };
 
 const EMPTY = { employee_id:'', firstName:'', lastName:'', title:'Prof.', department:'Information Technology', email:'', phone:'', specialization:'', employmentStatus:'Full-time', maxLoad:21, minLoad:15 };
 
@@ -29,6 +32,7 @@ export default function FacultyProfile() {
   const { isAdmin, isFaculty } = useRole();
   const { user } = useAuth();
   const [faculty, setFaculty]     = useState([]);
+  const [subjects, setSubjects]   = useState([]);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState('');
@@ -39,14 +43,22 @@ export default function FacultyProfile() {
   const [form, setForm]           = useState({...EMPTY});
   const [search, setSearch]       = useState('');
 
+  const loadSubjects = useCallback(async (facultyId) => {
+    try {
+      const data = await api.getFacultySubjects(facultyId);
+      setSubjects(data);
+    } catch { setSubjects([]); }
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
       if (isFaculty) {
-        // Faculty sees only their own profile — go straight to detail view
         const profile = await api.getMyFacultyProfile();
-        setSelected(toUI(profile));
+        const ui = toUI(profile);
+        setSelected(ui);
         setView('detail');
+        await loadSubjects(ui.id);
       } else {
         const d = await api.getFaculty();
         setFaculty(d.map(toUI));
@@ -54,7 +66,7 @@ export default function FacultyProfile() {
     }
     catch(e) { setError(e.message); }
     finally { setLoading(false); }
-  }, [isFaculty]);
+  }, [isFaculty, loadSubjects]);
   useEffect(()=>{ load(); },[load]);
 
   const filtered = faculty.filter(f => {
@@ -64,7 +76,7 @@ export default function FacultyProfile() {
 
   const openCreate = ()=>{ setForm({...EMPTY}); setModalMode('create'); setShowModal(true); };
   const openEdit   = f =>{ setForm({...f}); setModalMode('edit'); setShowModal(true); };
-  const openDetail = f =>{ setSelected(f); setView('detail'); };
+  const openDetail = f =>{ setSelected(f); setView('detail'); loadSubjects(f.id); };
   const goBack     = ()=>{ setView('list'); setSelected(null); };
   const ff = (k,v) => setForm(p=>({...p,[k]:v}));
 
@@ -148,6 +160,57 @@ export default function FacultyProfile() {
               <div style={{fontSize:'.75rem',color:'var(--text-tertiary)',marginTop:'6px',textAlign:'right'}}>{selected.currentLoad} / {selected.maxLoad} units</div>
             </div>
           </div>
+        </div>
+
+        {/* ── Subjects / Schedules ── */}
+        <div className="card" style={{marginTop:'1rem'}}>
+          <div className="card-title"><FaBook/> Subjects Handled ({subjects.length})</div>
+          {subjects.length === 0
+            ? <p style={{color:'var(--text-tertiary)',fontSize:'.875rem',margin:'8px 0 0'}}>No subjects assigned yet.</p>
+            : (
+              <div className="fac-subjects-table-wrap">
+                <table className="fac-subjects-table">
+                  <thead>
+                    <tr>
+                      <th>Code</th><th>Subject</th><th>Type</th>
+                      <th>Section</th><th>Day</th><th>Time</th>
+                      <th>Room</th><th>Enrolled</th><th>Units</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subjects.map((s, i) => (
+                      <tr key={i}>
+                        <td><strong>{s.code}</strong></td>
+                        <td>{s.title}</td>
+                        <td>
+                          <span className={`fac-type-badge fac-type-${TYPE_CLASS[s.type] || 'lecture'}`}>
+                            {TYPE_LABEL[s.type] || s.type}
+                          </span>
+                        </td>
+                        <td>{s.section}</td>
+                        <td>{s.day}</td>
+                        <td style={{whiteSpace:'nowrap'}}>{s.start_time} – {s.end_time}</td>
+                        <td>
+                          <div style={{display:'flex',flexDirection:'column'}}>
+                            <span>{s.room_code}</span>
+                            <small style={{color:'var(--text-tertiary)',fontSize:'.72rem'}}>{s.room_name}</small>
+                          </div>
+                        </td>
+                        <td>
+                          <span style={{
+                            color: s.enrolled >= s.capacity ? '#ef4444' : s.enrolled >= s.capacity * 0.9 ? '#d97706' : '#16a34a',
+                            fontWeight: 700
+                          }}>
+                            {s.enrolled}/{s.capacity}
+                          </span>
+                        </td>
+                        <td><strong>{s.units}</strong></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
         </div>
         {showModal&&<FacultyModal mode={modalMode} form={form} ff={ff} onSubmit={handleSubmit} onClose={()=>setShowModal(false)} saving={saving}/>}
       </div>

@@ -288,9 +288,80 @@ export const removeFaculty = async (req, res) => {
   }
 };
 
-// ── GET /api/students/stats — admin only ──────────────────────────────────
-export const getStudentStats = async (_req, res) => {
+// ── GET /api/students/:id/enrollments ─────────────────────────────────────
+// Returns all schedules/subjects a student is enrolled in
+export const getStudentEnrollments = async (req, res) => {
   try {
+    const { role, id: userId } = req.user;
+    const studentId = parseId(req.params.id);
+
+    // Security: student can only see their own enrollments
+    if (role === 'student') {
+      const [[own]] = await pool.query('SELECT id FROM students WHERE id = ? AND user_id = ?', [studentId, userId]);
+      if (!own) return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT
+         e.id AS enrollment_id,
+         sub.id AS subject_id, sub.code, sub.title, sub.type, sub.hours, sub.units,
+         s.section, s.day, s.start_time, s.end_time,
+         f.first_name AS faculty_first, f.last_name AS faculty_last, f.title AS faculty_title,
+         r.room_id AS room_code, r.name AS room_name
+       FROM enrollments e
+       JOIN schedules s  ON s.id  = e.schedule_id
+       JOIN subjects  sub ON sub.id = s.subject_id
+       JOIN faculty   f   ON f.id  = s.faculty_id
+       JOIN rooms     r   ON r.id  = s.room_id
+       WHERE e.student_id = ?
+       ORDER BY s.day, s.start_time`,
+      [studentId]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(err.status || 500).json({ message: 'Failed to fetch enrollments' });
+  }
+};
+
+// ── POST /api/students/:id/enrollments — admin only ───────────────────────
+// Enroll a student in one or more schedules
+export const enrollStudent = async (req, res) => {
+  try {
+    const studentId   = parseId(req.params.id);
+    const scheduleIds = Array.isArray(req.body.schedule_ids)
+      ? req.body.schedule_ids.map(Number).filter(n => Number.isInteger(n) && n > 0)
+      : [];
+
+    if (!scheduleIds.length)
+      return res.status(400).json({ message: 'schedule_ids array is required' });
+
+    const vals = scheduleIds.map(sid => [studentId, sid]);
+    await pool.query('INSERT IGNORE INTO enrollments (student_id, schedule_id) VALUES ?', [vals]);
+    res.json({ message: 'Enrolled successfully' });
+  } catch (err) {
+    res.status(err.status || 500).json({ message: 'Failed to enroll student' });
+  }
+};
+
+// ── DELETE /api/students/:id/enrollments/:enrollmentId — admin only ────────
+export const unenrollStudent = async (req, res) => {
+  try {
+    const studentId    = parseId(req.params.id);
+    const enrollmentId = parseId(req.params.enrollmentId);
+
+    const [result] = await pool.query(
+      'DELETE FROM enrollments WHERE id = ? AND student_id = ?',
+      [enrollmentId, studentId]
+    );
+    if (!result.affectedRows) return res.status(404).json({ message: 'Enrollment not found' });
+    res.json({ message: 'Unenrolled successfully' });
+  } catch (err) {
+    res.status(err.status || 500).json({ message: 'Failed to unenroll student' });
+  }
+};
+
+// ── GET /api/students/stats — admin only ──────────────────────────────────
+export const getStudentStats = async (_req, res) => {  try {
     const [[{ total }]] = await pool.query('SELECT COUNT(*) as total FROM students');
     const [skillRows]   = await pool.query('SELECT skills FROM students WHERE skills IS NOT NULL');
     const allSkills     = skillRows.flatMap(r => parseList(r.skills));

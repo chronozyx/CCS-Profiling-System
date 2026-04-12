@@ -37,6 +37,30 @@ export const getMyFacultyProfile = async (req, res) => {
   }
 };
 
+// ── GET /api/faculty/:id/subjects — subjects taught by a faculty member ────
+export const getFacultySubjects = async (req, res) => {
+  try {
+    const id = parseId(req.params.id);
+    const [rows] = await pool.query(
+      `SELECT DISTINCT
+         sub.id, sub.code, sub.title, sub.type, sub.hours, sub.units,
+         s.section, s.day, s.start_time, s.end_time,
+         r.room_id AS room_code, r.name AS room_name,
+         (SELECT COUNT(*) FROM enrollments e WHERE e.schedule_id = s.id) AS enrolled,
+         r.capacity
+       FROM schedules s
+       JOIN subjects sub ON sub.id = s.subject_id
+       JOIN rooms    r   ON r.id   = s.room_id
+       WHERE s.faculty_id = ?
+       ORDER BY s.day, s.start_time`,
+      [id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(err.status || 500).json({ message: 'Failed to fetch subjects' });
+  }
+};
+
 export const getFacultyById = async (req, res) => {
   try {
     const id = parseId(req.params.id);

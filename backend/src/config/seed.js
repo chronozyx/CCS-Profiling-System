@@ -120,6 +120,17 @@ async function seed() {
         (10,${f1.id},3,'BSIT-4B','Thursday','09:00','12:00')
     `);
 
+    // ── Missing schedules for subjects that have materials but no schedule ──
+    // CS301 Software Engineering → Prof. Jose Reyes (f2)
+    // CS401 Database Management Systems → Dr. Rosa Garcia (f5)
+    // CS402 Database Management Lab → Dr. Rosa Garcia (f5)
+    await conn.query(`
+      INSERT IGNORE INTO schedules (subject_id,faculty_id,room_id,section,day,start_time,end_time) VALUES
+        (6,${f2.id},2,'BSCS-3B','Thursday','09:00','12:00'),
+        (7,${f5.id},2,'BSIT-4C','Monday','13:00','15:00'),
+        (8,${f5.id},6,'BSIT-4C','Wednesday','13:00','16:00')
+    `);
+
     // ── Students (user_id only — no faculty_id column anymore) ──────────────
     const studentData = [
       ['STU-2026-001','Juan',  'Dela Cruz', 'Santos', 20,'Male',  'juan.delacruz@ccs.edu',    '09123456789','123 Main St, Manila',        'BSIT','3rd Year','BSIT-3A','Programming,Web Dev',  'Hackathon Club','ICTSO',             '',              '2026-01-10'],

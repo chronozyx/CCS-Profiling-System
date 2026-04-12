@@ -3,6 +3,7 @@ import {
   getStudents, getStudentById, createStudent,
   updateStudent, deleteStudent, getStudentStats,
   assignFaculty, removeFaculty,
+  getStudentEnrollments, enrollStudent, unenrollStudent,
 } from '../controllers/student.controller.js';
 import { verifyToken, authorizeRoles } from '../middlewares/auth.middleware.js';
 
@@ -17,8 +18,13 @@ router.post('/',      authorizeRoles('admin'),                           createS
 router.put('/:id',    authorizeRoles('admin', 'faculty', 'student'),     updateStudent);
 router.delete('/:id', authorizeRoles('admin'),                           deleteStudent);
 
-// Faculty assignment management — admin only
+// Faculty assignment
 router.post('/:id/faculty',              authorizeRoles('admin'), assignFaculty);
 router.delete('/:id/faculty/:facultyId', authorizeRoles('admin'), removeFaculty);
+
+// Enrollments
+router.get('/:id/enrollments',                    authorizeRoles('admin','faculty','student'), getStudentEnrollments);
+router.post('/:id/enrollments',                   authorizeRoles('admin'),                     enrollStudent);
+router.delete('/:id/enrollments/:enrollmentId',   authorizeRoles('admin'),                     unenrollStudent);
 
 export default router;

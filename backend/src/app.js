@@ -15,6 +15,7 @@ import materialRoutes  from './routes/material.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import auditRoutes     from './routes/audit.routes.js';
 import userRoutes      from './routes/user.routes.js';
+import subjectRoutes   from './routes/subject.routes.js';
 
 const app = express();
 
@@ -105,6 +106,7 @@ app.use('/api/materials', materialRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/audit',    auditRoutes);
 app.use('/api/users',    userRoutes);
+app.use('/api/subjects', subjectRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ message: 'Not found' }));

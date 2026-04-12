@@ -406,3 +406,54 @@
   border: 1px solid color-mix(in srgb, var(--badge-color) 30%, transparent);
   letter-spacing: .03em;
 }
+
+/* ── Enrolled subjects table ── */
+.sp-enroll-table-wrap { overflow-x:auto; margin-top:10px; border-radius:var(--radius-lg); border:1px solid var(--border-color); }
+.sp-enroll-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+.sp-enroll-table th {
+  padding:9px 12px; text-align:left; font-size:.72rem; font-weight:700;
+  text-transform:uppercase; letter-spacing:.05em; color:var(--text-tertiary);
+  background:var(--bg-tertiary); border-bottom:1px solid var(--border-color); white-space:nowrap;
+}
+.sp-enroll-table td { padding:9px 12px; border-bottom:1px solid var(--border-color); color:var(--text-primary); vertical-align:middle; }
+.sp-enroll-table tr:last-child td { border-bottom:none; }
+.sp-enroll-table tr:hover td { background:var(--bg-tertiary); }
+
+/* Type badges in enrolled table */
+.sp-type-badge {
+  display:inline-flex; align-items:center;
+  padding:3px 9px; border-radius:50px; font-size:.7rem; font-weight:700; border:1px solid transparent;
+}
+.sp-type-lecture     { background:#eff6ff; color:#3b82f6; border-color:#bfdbfe; }
+.sp-type-laboratory  { background:#faf5ff; color:#7c3aed; border-color:#ddd6fe; }
+.sp-type-pure        { background:#f0fdf4; color:#16a34a; border-color:#bbf7d0; }
+.dark .sp-type-lecture    { background:#1e3a5f; color:#93c5fd; border-color:#1e40af; }
+.dark .sp-type-laboratory { background:#2e1065; color:#c4b5fd; border-color:#4c1d95; }
+.dark .sp-type-pure       { background:#14532d; color:#86efac; border-color:#166534; }
+
+/* ── Enroll checkboxes in modal ── */
+.sp-enroll-list {
+  display:flex; flex-direction:column; gap:6px;
+  max-height:260px; overflow-y:auto;
+  border:1.5px solid var(--border-color); border-radius:var(--radius-md); padding:8px;
+  background:var(--bg-primary);
+}
+.sp-enroll-item {
+  display:flex; align-items:flex-start; gap:10px;
+  padding:8px 10px; border-radius:var(--radius-md);
+  cursor:pointer; transition:background .15s; border:1.5px solid transparent;
+}
+.sp-enroll-item:hover { background:var(--bg-tertiary); }
+.sp-enroll-item.checked { background:rgba(255,107,53,.06); border-color:rgba(255,107,53,.3); }
+.sp-enroll-item input[type=checkbox] { margin-top:3px; accent-color:var(--primary-orange); flex-shrink:0; }
+.sp-enroll-info { display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:.8rem; }
+.sp-enroll-code  { font-weight:800; color:var(--primary-orange); }
+.sp-enroll-title { color:var(--text-primary); font-weight:600; }
+.sp-enroll-meta  { color:var(--text-tertiary); font-size:.75rem; }
+.sp-enroll-faculty { color:var(--text-secondary); font-size:.75rem; }
+.sp-enroll-type  {
+  padding:2px 7px; border-radius:50px; font-size:.68rem; font-weight:700; border:1px solid transparent;
+}
+.sp-enroll-lecture    { background:#eff6ff; color:#3b82f6; border-color:#bfdbfe; }
+.sp-enroll-laboratory { background:#faf5ff; color:#7c3aed; border-color:#ddd6fe; }
+.sp-enroll-pure       { background:#f0fdf4; color:#16a34a; border-color:#bbf7d0; }

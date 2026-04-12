@@ -98,3 +98,29 @@ export const deleteSchedule = async (req, res) => {
     res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to delete schedule' });
   }
 };
+
+export const updateSchedule = async (req, res) => {
+  try {
+    const id         = parseId(req.params.id);
+    const b          = sanitizeBody(req.body);
+    const subject_id = parseId(b.subject_id);
+    const faculty_id = parseId(b.faculty_id);
+    const room_id    = parseId(b.room_id);
+    const section    = requireString(b.section,  'Section', 10);
+    const day        = requireEnum(b.day,         'Day',     DAYS);
+    const start_time = requireTime(b.start_time,  'Start time');
+    const end_time   = requireTime(b.end_time,    'End time');
+
+    if (start_time >= end_time)
+      return res.status(400).json({ message: 'Start time must be before end time' });
+
+    const [result] = await pool.query(
+      'UPDATE schedules SET subject_id=?,faculty_id=?,room_id=?,section=?,day=?,start_time=?,end_time=? WHERE id=?',
+      [subject_id, faculty_id, room_id, section, day, start_time, end_time, id]
+    );
+    if (!result.affectedRows) return res.status(404).json({ message: 'Schedule not found' });
+    res.json({ id, subject_id, faculty_id, room_id, section, day, start_time, end_time });
+  } catch (err) {
+    res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to update schedule' });
+  }
+};
