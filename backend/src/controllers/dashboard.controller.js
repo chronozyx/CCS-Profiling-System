@@ -26,9 +26,15 @@ export const getDashboardStats = async (req, res) => {
 
     // 2. Debug General Counts
     console.log("Fetching Faculty/Events/Schedules counts...");
-    const [[fRow]] = await pool.query('SELECT COUNT(*) AS total FROM faculty');
-    const [[eRow]] = await pool.query("SELECT COUNT(*) AS total FROM events WHERE status = 'Upcoming'");
-    const [[cRow]] = await pool.query('SELECT COUNT(*) AS total FROM schedules');
+    // Replace the [[fRow]] lines with this:
+    const [fRows] = await pool.query('SELECT COUNT(*) AS total FROM faculty');
+    const fTotal = fRows[0]?.total || 0;
+
+    const [eRows] = await pool.query('SELECT COUNT(*) AS total FROM events WHERE status = ?', ['Upcoming']);
+    const eTotal = eRows[0]?.total || 0;
+
+    const [cRows] = await pool.query('SELECT COUNT(*) AS total FROM schedules');
+    const cTotal = cRows[0]?.total || 0;
     console.log("Counts fetched successfully");
 
     // 3. Debug Skills Logic
