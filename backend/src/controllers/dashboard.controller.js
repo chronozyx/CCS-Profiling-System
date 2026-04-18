@@ -4,12 +4,13 @@ export const getDashboardStats = async (req, res) => {
   try {
     console.log("--- Dashboard Debug Start ---");
     
-    // 1. Debug User Object
+    // 1. Resolve User Identity
     const user = req.user || { role: 'admin', id: null };
     console.log("Current User Data:", JSON.stringify(user));
     const { role, id: userId } = user;
 
-    let studentCount;
+    // 2. Student Count (Role-Based)
+    let studentCount = 0;
     if (role === 'faculty' && userId) {
       console.log("Running Faculty Student Count for ID:", userId);
       const [rows] = await pool.query(
@@ -22,36 +23,34 @@ export const getDashboardStats = async (req, res) => {
       const [rows] = await pool.query('SELECT COUNT(*) AS total FROM students');
       studentCount = rows[0]?.total || 0;
     }
-    console.log("Student Count Result:", studentCount);
 
-    // 2. Debug General Counts
+    // 3. Fetching General Counts (Safe Destructuring)
     console.log("Fetching Faculty/Events/Schedules counts...");
-    // Replace the [[fRow]] lines with this:
     const [fRows] = await pool.query('SELECT COUNT(*) AS total FROM faculty');
-    const fTotal = fRows[0]?.total || 0;
-
     const [eRows] = await pool.query('SELECT COUNT(*) AS total FROM events WHERE status = ?', ['Upcoming']);
-    const eTotal = eRows[0]?.total || 0;
-
     const [cRows] = await pool.query('SELECT COUNT(*) AS total FROM schedules');
+    
+    const fTotal = fRows[0]?.total || 0;
+    const eTotal = eRows[0]?.total || 0;
     const cTotal = cRows[0]?.total || 0;
-    console.log("Counts fetched successfully");
 
-    // 3. Debug Skills Logic
+    // 4. Skills Logic (Safety for Empty DB)
     console.log("Fetching Skills...");
     const [skillRows] = await pool.query('SELECT skills FROM students WHERE skills IS NOT NULL AND skills != ""');
-    console.log(`Found ${skillRows.length} rows with skills`);
     
-    const allSkills = skillRows.flatMap(r => r.skills.split(',').map(s => s.trim()).filter(Boolean));
-    const skillCount = allSkills.reduce((a, s) => { a[s] = (a[s] || 0) + 1; return a; }, {});
-    const sortedSkills = Object.entries(skillCount).sort((a, b) => b[1] - a[1]);
-    const topSkill = sortedSkills.length > 0 ? sortedSkills[0][0] : '—';
-    console.log("Top Skill Calculated:", topSkill);
+    let topSkill = '—';
+    if (skillRows.length > 0) {
+      const allSkills = skillRows.flatMap(r => (r.skills || '').split(',').map(s => s.trim()).filter(Boolean));
+      const skillCount = allSkills.reduce((a, s) => { a[s] = (a[s] || 0) + 1; return a; }, {});
+      const sortedSkills = Object.entries(skillCount).sort((a, b) => b[1] - a[1]);
+      topSkill = sortedSkills.length > 0 ? sortedSkills[0][0] : '—';
+    }
 
-    // 4. Debug Recent Students
+    // 5. Recent Students (Role-Based)
     let recentQuery = 'SELECT first_name, last_name, program, year_level, skills FROM students ORDER BY created_at DESC LIMIT 3';
     let recentParams = [];
-    if (role === 'faculty') {
+    
+    if (role === 'faculty' && userId) {
       console.log("Applying Faculty Filter to Recent Students");
       recentQuery = `SELECT s.first_name, s.last_name, s.program, s.year_level, s.skills
                      FROM students s
@@ -61,23 +60,21 @@ export const getDashboardStats = async (req, res) => {
       recentParams = [userId];
     }
     
-    console.log("Running Recent Students Query...");
     const [recentStudents] = await pool.query(recentQuery, recentParams);
-    console.log(`Found ${recentStudents.length} recent students`);
 
-    // 5. Debug Researchers
-    console.log("Running Researchers Query...");
+    // 6. Top Researchers
     const [topResearchers] = await pool.query(
       'SELECT title, evaluation_score FROM research ORDER BY evaluation_score DESC LIMIT 3'
     );
 
     console.log("--- Dashboard Debug Success ---");
 
+    // 7. Final JSON Response
     res.json({
       totalStudents: studentCount,
-      totalFaculty: fRow.total,
-      upcomingEvents: eRow.total,
-      totalSchedules: cRow.total,
+      totalFaculty: fTotal,
+      upcomingEvents: eTotal,
+      totalSchedules: cTotal,
       topSkill,
       recentStudents: recentStudents.map(s => ({
         name: `${s.first_name} ${s.last_name}`,
@@ -95,10 +92,9 @@ export const getDashboardStats = async (req, res) => {
 
   } catch (err) {
     console.error(`[DASHBOARD ERROR CRITICAL]: ${err.message}`);
-    console.error(`Stack Trace: ${err.stack}`);
     res.status(500).json({ 
         message: 'Failed to load dashboard stats',
-        debug_info: err.message // Temporary: remove this after fixing
+        debug_info: err.message
     });
   }
 };
