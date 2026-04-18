@@ -1,3 +1,5 @@
+import pool from '../config/db.js';
+
 export const getDashboardStats = async (req, res) => {
   try {
     console.log("--- Dashboard Debug Start ---");
