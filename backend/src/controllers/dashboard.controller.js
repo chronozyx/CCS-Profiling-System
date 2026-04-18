@@ -34,17 +34,26 @@ export const getDashboardStats = async (req, res) => {
     const eTotal = eRows[0]?.total || 0;
     const cTotal = cRows[0]?.total || 0;
 
-    // 4. Skills Logic (Safety for Empty DB)
+    // 4. Skills Logic (Fixed for Aiven/MySQL 8)
     console.log("Fetching Skills...");
-    const [skillRows] = await pool.query('SELECT skills FROM students WHERE skills IS NOT NULL AND skills != ""');
+    // Use single quotes for the empty string to avoid the 'Unknown column' error
+    const [skillRows] = await pool.query("SELECT skills FROM students WHERE skills IS NOT NULL AND skills <> ''");
     
     let topSkill = '—';
-    if (skillRows.length > 0) {
-      const allSkills = skillRows.flatMap(r => (r.skills || '').split(',').map(s => s.trim()).filter(Boolean));
-      const skillCount = allSkills.reduce((a, s) => { a[s] = (a[s] || 0) + 1; return a; }, {});
-      const sortedSkills = Object.entries(skillCount).sort((a, b) => b[1] - a[1]);
-      topSkill = sortedSkills.length > 0 ? sortedSkills[0][0] : '—';
+    if (skillRows && skillRows.length > 0) {
+      console.log(`Processing skills for ${skillRows.length} students`);
+      const allSkills = skillRows.flatMap(r => {
+        const s = r.skills || '';
+        return s.split(',').map(item => item.trim()).filter(Boolean);
+      });
+      
+      if (allSkills.length > 0) {
+        const skillCount = allSkills.reduce((a, s) => { a[s] = (a[s] || 0) + 1; return a; }, {});
+        const sortedSkills = Object.entries(skillCount).sort((a, b) => b[1] - a[1]);
+        topSkill = sortedSkills[0][0];
+      }
     }
+    console.log("Top Skill Result:", topSkill);
 
     // 5. Recent Students (Role-Based)
     let recentQuery = 'SELECT first_name, last_name, program, year_level, skills FROM students ORDER BY created_at DESC LIMIT 3';
