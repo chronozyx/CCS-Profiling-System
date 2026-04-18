@@ -2,20 +2,20 @@ import pool from '../config/db.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
-    const { role, id: userId } = req.user;
+    const user = req.user || { role: 'admin', id: null };
+    const { role, id: userId } = user;
 
-    // Faculty: scope student count to their assigned students only
     let studentCount;
-    if (role === 'faculty') {
-      const [[row]] = await pool.query(
-        `SELECT COUNT(DISTINCT sf.student_id) AS total
-         FROM student_faculty sf
-         WHERE sf.faculty_id = ?`, [userId]
+    // 2. Ensure userId exists before running faculty query
+    if (role === 'faculty' && userId) {
+      const [rows] = await pool.query(
+        `SELECT COUNT(DISTINCT student_id) AS total FROM student_faculty WHERE faculty_id = ?`, 
+        [userId]
       );
-      studentCount = row.total;
+      studentCount = rows[0]?.total || 0;
     } else {
-      const [[row]] = await pool.query('SELECT COUNT(*) AS total FROM students');
-      studentCount = row.total;
+      const [rows] = await pool.query('SELECT COUNT(*) AS total FROM students');
+      studentCount = rows[0]?.total || 0;
     }
 
     const [[fRow]] = await pool.query('SELECT COUNT(*) AS total FROM faculty');

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-
+const API_URL = import.meta.env.VITE_API_URL;
 const AuthContext = createContext(null);
 
 const TOKEN_KEY = 'ccs_token';
@@ -17,8 +17,11 @@ export function AuthProvider({ children }) {
     const stored = localStorage.getItem(TOKEN_KEY);
     if (!stored) { setLoading(false); return; }
 
-    fetch('http://localhost:5000/api/auth/me', {
-      headers: { Authorization: `Bearer ${stored}` },
+    fetch(`${API_URL}/auth/me`, {
+      headers: { 
+        'Authorization': `Bearer ${stored}`,
+        'Content-Type': 'application/json'
+      },
     })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(u => { setUser(u); setToken(stored); })
