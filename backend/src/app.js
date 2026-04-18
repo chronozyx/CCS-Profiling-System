@@ -33,14 +33,9 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,h
   .split(',').map(o => o.trim());
 
 app.use(cors({
-  origin: (origin, cb) => {
-    // allow server-to-server / curl in dev (no origin header)
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-    cb(new Error('CORS: origin not allowed'));
-  },
+  origin: '*', 
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
 }));
 
 // ── Body parsing — cap payload size to prevent DoS ────────────────────────
