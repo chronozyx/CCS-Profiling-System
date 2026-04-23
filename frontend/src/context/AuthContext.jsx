@@ -52,7 +52,7 @@ export function AuthProvider({ children }) {
     if (!user) return false;
     if (isAdmin) return true;
     const studentBlocked = ['dashboard', 'faculty', 'scheduling', 'events', 'research', 'instructional', 'rooms', 'audit', 'users'];
-    const facultyBlocked = ['dashboard', 'student', 'scheduling', 'events', 'research', 'instructional', 'rooms', 'audit', 'users'];
+    const facultyBlocked = ['dashboard', 'student', 'events', 'research', 'audit', 'users'];
     if (isStudent && studentBlocked.includes(module)) return false;
     if (isFaculty && facultyBlocked.includes(module)) return false;
     return true;

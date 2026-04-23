@@ -12,7 +12,7 @@ router.use(verifyToken);
 router.get('/me',            authorizeRoles('faculty'),           getMyFacultyProfile);
 router.get('/:id/subjects',  authorizeRoles('admin','faculty'),   getFacultySubjects);
 router.get('/',              authorizeRoles('admin'),              getFaculty);
-router.get('/:id',           authorizeRoles('admin'),              getFacultyById);
+router.get('/:id',           authorizeRoles('admin','faculty'),   getFacultyById);
 router.post('/',             authorizeRoles('admin'),              createFaculty);
 router.put('/:id',           authorizeRoles('admin'),              updateFaculty);
 router.delete('/:id',        authorizeRoles('admin'),              deleteFaculty);

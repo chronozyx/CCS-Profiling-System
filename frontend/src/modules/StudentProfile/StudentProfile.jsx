@@ -1,7 +1,9 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './StudentProfile.css';
 import { api } from '../../api/index.js';
 import { useAuth, useRole } from '../../context/AuthContext.jsx';
+import Loader from '../../components/Loader.jsx';
 import {
   FaPlus, FaEdit, FaTrash, FaEye, FaSearch, FaFilter,
   FaTh, FaTable, FaTimes, FaUserGraduate,
@@ -131,7 +133,7 @@ function StudentModal({ mode, form, setForm, schedules, onSubmit, onClose, savin
         <form className="sp-form" onSubmit={onSubmit}>
           <div className="sp-form-section-title">Personal Information</div>
           <div className="sp-form-row">
-            <div className="form-group"><label>Student ID *</label><input required value={form.student_id} onChange={e=>f('student_id',e.target.value)} placeholder="STU-2026-006"/></div>
+            <div className="form-group"><label>Student ID *</label><input required value={form.student_id} onChange={e=>f('student_id',e.target.value.replace(/\D/g,'').slice(0,7))} placeholder="2026001" inputMode="numeric" maxLength={7}/></div>
             <div className="form-group"><label>First Name *</label><input required value={form.firstName} onChange={e=>f('firstName',e.target.value)}/></div>
             <div className="form-group"><label>Last Name *</label><input required value={form.lastName} onChange={e=>f('lastName',e.target.value)}/></div>
           </div>
@@ -212,15 +214,14 @@ function StudentModal({ mode, form, setForm, schedules, onSubmit, onClose, savin
 export default function StudentProfile() {
   const { user } = useAuth();
   const { isAdmin, isFaculty, isStudent, role } = useRole();
+  const navigate = useNavigate();
 
   const [students, setStudents]   = useState([]);
-  const [enrollments, setEnrollments] = useState([]);
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState('');
   const [view, setView]           = useState('cards');
-  const [selected, setSelected]   = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [form, setForm]           = useState({...EMPTY_FORM});
@@ -239,12 +240,9 @@ export default function StudentProfile() {
       ]);
       setStudents(data.map(toUI));
       setSchedules(scheds);
+      // Student role: navigate directly to their own detail page
       if (isStudent && data.length > 0) {
-        const ui = toUI(data[0]);
-        setSelected(ui);
-        setView('detail');
-        const enr = await api.getStudentEnrollments(ui.id).catch(() => []);
-        setEnrollments(enr);
+        navigate(`/students/${data[0].id}`, { replace: true });
       }
     } catch(e) { setError(e.message); }
     finally { setLoading(false); }
@@ -271,14 +269,8 @@ export default function StudentProfile() {
   const hasFilters = search||filterProgram!=='All'||filterYear!=='All'||filterSkill!=='All Skills'||filterGender!=='All';
   const openCreate = ()=>{ setForm({...EMPTY_FORM, schedule_ids:[]}); setModalMode('create'); setShowModal(true); };
   const openEdit   = s =>{ setForm({...s, student_id: s.student_id||''}); setModalMode('edit'); setShowModal(true); };
-  const openDetail = async s => {
-    setSelected(s); setView('detail');
-    try {
-      const enr = await api.getStudentEnrollments(s.id);
-      setEnrollments(enr);
-    } catch { setEnrollments([]); }
-  };
-  const goBack     = ()=>{ if(isStudent) return; setView('cards'); setSelected(null); };
+  // Navigate to the dynamic route /students/:id
+  const openDetail = s => navigate(`/students/${s.id}`);
   const clearFilters=()=>{ setSearch('');setFilterProgram('All');setFilterYear('All');setFilterSkill('All Skills');setFilterGender('All'); };
 
   const handleDelete = async id => {
@@ -286,7 +278,6 @@ export default function StudentProfile() {
     try {
       await api.deleteStudent(id);
       setStudents(prev=>prev.filter(s=>s.id!==id));
-      if(selected?.id===id) goBack();
     } catch(e) { alert('Delete failed: '+e.message); }
   };
 
@@ -295,156 +286,20 @@ export default function StudentProfile() {
     try {
       if(modalMode==='create') {
         const created = await api.createStudent(toDB(form));
-        // Enroll in selected schedules
         if (form.schedule_ids?.length) {
           await api.enrollStudent(created.id, form.schedule_ids);
         }
         setStudents(prev=>[toUI(created),...prev]);
       } else {
         const updated = await api.updateStudent(form.id, toDB(form));
-        const ui = toUI(updated);
-        setStudents(prev=>prev.map(s=>s.id===form.id?ui:s));
-        if(selected?.id===form.id) setSelected(ui);
+        setStudents(prev=>prev.map(s=>s.id===form.id?toUI(updated):s));
       }
       setShowModal(false);
     } catch(e) { alert('Save failed: '+e.message); }
     finally { setSaving(false); }
   };
 
-  // ── DETAIL VIEW ────────────────────────────────────────────────────────────
-  if (view==='detail' && selected) {
-    // Students only see My Profile + My Skills — no violations shown to themselves
-    const showViolations = isAdmin || isFaculty;
-    const canEdit        = isAdmin || isFaculty;
-    const canDelete      = isAdmin;
-
-    return (
-      <div className="sp-container">
-        <div className="sp-detail-topbar">
-          <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-            {!isStudent && (
-              <button className="btn-back" onClick={goBack}><FaArrowLeft/> Back</button>
-            )}
-            <RoleBadge role={role} />
-          </div>
-          <div className="sp-detail-actions">
-            {canEdit   && <button className="btn-edit-action"   onClick={()=>openEdit(selected)}><FaEdit/> Edit</button>}
-            {canDelete && <button className="btn-delete-action" onClick={()=>handleDelete(selected.id)}><FaTrash/> Delete</button>}
-          </div>
-        </div>
-
-        <div className="sp-detail-hero">
-          <div className="sp-avatar-lg">{selected.firstName[0]}{selected.lastName[0]}</div>
-          <div className="sp-detail-hero-info">
-            <h1>{selected.firstName} {selected.middleName} {selected.lastName}</h1>
-            <p className="sp-detail-sub">
-              {selected.student_id} &bull; {selected.program} &bull; {selected.yearLevel} &bull; Section {selected.section}
-            </p>
-            <div className="sp-detail-badges">
-              {selected.skills.map(sk=><Badge key={sk} label={sk} color={SKILL_COLORS[sk]}/>)}
-            </div>
-          </div>
-        </div>
-
-        <div className="sp-detail-grid">
-          {/* My Profile — visible to all roles */}
-          <div className="sp-detail-card">
-            <h3><FaUserGraduate/> {isStudent ? 'My Profile' : 'Personal Information'}</h3>
-            <div className="sp-info-list">
-              <div className="sp-info-row"><span>Age</span><strong>{selected.age}</strong></div>
-              <div className="sp-info-row"><span>Gender</span><strong>{selected.gender}</strong></div>
-              <div className="sp-info-row"><FaEnvelope/><span>Email</span><strong>{selected.email}</strong></div>
-              <div className="sp-info-row"><FaPhone/><span>Phone</span><strong>{selected.phone}</strong></div>
-              <div className="sp-info-row"><FaMapMarkerAlt/><span>Address</span><strong>{selected.address}</strong></div>
-            </div>
-          </div>
-
-          <div className="sp-detail-card">
-            <h3><FaUserGraduate/> Academic History</h3>
-            <div className="sp-info-list">
-              <div className="sp-info-row"><span>Program</span><strong>{selected.program}</strong></div>
-              <div className="sp-info-row"><span>Year Level</span><strong>{selected.yearLevel}</strong></div>
-              <div className="sp-info-row"><span>Section</span><strong>{selected.section}</strong></div>
-              <div className="sp-info-row"><span>Date Added</span><strong>{selected.addedDate}</strong></div>
-            </div>
-          </div>
-
-          {/* My Skills — visible to all roles */}
-          <div className="sp-detail-card">
-            <h3><FaStar/> {isStudent ? 'My Skills' : 'Skills'}</h3>
-            <div className="sp-tag-list">
-              {selected.skills.length
-                ? selected.skills.map(sk=><Badge key={sk} label={sk} color={SKILL_COLORS[sk]}/>)
-                : <span className="sp-empty">No skills listed</span>}
-            </div>
-          </div>
-
-          <div className="sp-detail-card">
-            <h3><FaUsers/> Affiliations</h3>
-            <div className="sp-tag-list">
-              {selected.affiliations.length
-                ? selected.affiliations.map(a=><span key={a} className="affil-badge">{a}</span>)
-                : <span className="sp-empty">None</span>}
-            </div>
-          </div>
-
-          <div className="sp-detail-card">
-            <h3><FaTag/> Non-Academic Activities</h3>
-            <div className="sp-tag-list">
-              {selected.activities.length
-                ? selected.activities.map(a=><span key={a} className="activity-badge">{a}</span>)
-                : <span className="sp-empty">None</span>}
-            </div>
-          </div>
-
-          {/* Violations — hidden from students */}
-          {showViolations && (
-            <div className="sp-detail-card sp-violations">
-              <h3><FaExclamationTriangle/> Violations</h3>
-              {selected.violations.length
-                ? <ul className="violation-list">{selected.violations.map((v,i)=><li key={i}>{v}</li>)}</ul>
-                : <span className="sp-empty sp-clean">No violations on record ✓</span>}
-            </div>
-          )}
-        </div>
-
-        {/* Enrolled Subjects */}
-        <div className="sp-detail-card" style={{marginTop:'1rem'}}>
-          <h3><FaBook/> {isStudent ? 'My Enrolled Subjects' : 'Enrolled Subjects'} ({enrollments.length})</h3>
-          {enrollments.length === 0
-            ? <span className="sp-empty">No subjects enrolled yet.</span>
-            : (
-              <div className="sp-enroll-table-wrap">
-                <table className="sp-enroll-table">
-                  <thead>
-                    <tr><th>Code</th><th>Subject</th><th>Type</th><th>Section</th><th>Faculty</th><th>Day</th><th>Time</th><th>Room</th><th>Units</th></tr>
-                  </thead>
-                  <tbody>
-                    {enrollments.map(e => (
-                      <tr key={e.enrollment_id}>
-                        <td><strong>{e.code}</strong></td>
-                        <td>{e.title}</td>
-                        <td><span className={`sp-type-badge sp-type-${TYPE_CLASS[e.type] || 'lecture'}`}>{TYPE_LABEL[e.type] || e.type}</span></td>
-                        <td>{e.section}</td>
-                        <td>{e.faculty_title} {e.faculty_first} {e.faculty_last}</td>
-                        <td>{e.day}</td>
-                        <td style={{whiteSpace:'nowrap'}}>{e.start_time}–{e.end_time}</td>
-                        <td>{e.room_code}</td>
-                        <td><strong>{e.units}</strong></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-        </div>
-
-        {showModal && <StudentModal mode={modalMode} form={form} setForm={setForm} schedules={schedules} onSubmit={handleSubmit} onClose={()=>setShowModal(false)} saving={saving}/>}
-      </div>
-    );
-  }
-
-  // ── LIST VIEW (admin + faculty only — students go straight to detail) ──────
+  // ── LIST VIEW ──────────────────────────────────────────────────────────────
   const pageTitle = isFaculty ? 'My Assigned Students' : 'Student Management';
 
   return (
@@ -501,10 +356,10 @@ export default function StudentProfile() {
       </div>
 
       <div className="sp-result-count">
-        {loading ? 'Loading…' : <>Showing <strong>{filtered.length}</strong> of {students.length} students{hasFilters&&<span className="sp-filter-active-label"> (filtered)</span>}</>}
+        {loading ? <Loader /> : <>Showing <strong>{filtered.length}</strong> of {students.length} students{hasFilters&&<span className="sp-filter-active-label"> (filtered)</span>}</>}
       </div>
 
-      {loading && <div className="sp-no-results" style={{padding:'3rem'}}>Loading students…</div>}
+      {loading && <Loader padded />}
 
       {!loading && view==='cards' && (
         <div className="sp-cards-grid">

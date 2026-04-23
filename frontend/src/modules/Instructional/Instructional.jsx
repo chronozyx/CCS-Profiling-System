@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import './Instructional.css';
 import { api } from '../../api/index.js';
+import { useRole } from '../../context/AuthContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import Loader from '../../components/Loader.jsx';
 import {
   FaPlus, FaFileAlt, FaEdit, FaBookOpen, FaTrash, FaTimes,
   FaSync, FaChevronDown, FaChevronRight, FaLayerGroup,
@@ -31,6 +34,12 @@ const typeIcon = t => {
 const EMPTY = { subject: '', faculty: '', type: 'Lecture Slides', title: '', _subjectKey: '' };
 
 export default function Instructional() {
+  const { isFaculty } = useRole();
+  const { user } = useAuth();
+  // Faculty full name as stored in schedules (e.g. "Maria Santos")
+  const facultyFullName = isFaculty && user?.name
+    ? user.name.replace(/^(Dr\.|Prof\.|Mr\.|Ms\.|Engr\.)\s*/i, '').trim()
+    : null;
   const [materials,   setMaterials]   = useState([]);
   const [schedules,   setSchedules]   = useState([]);
   const [loading,     setLoading]     = useState(true);
@@ -105,33 +114,47 @@ export default function Instructional() {
     });
 
     // Sort: scheduled subjects first (by code), then orphans alphabetically
-    return Array.from(map.values()).sort((a, b) => {
+    const all = Array.from(map.values()).sort((a, b) => {
       if (a.fromSched && !b.fromSched) return -1;
       if (!a.fromSched && b.fromSched) return 1;
       return (a.code || a.title).localeCompare(b.code || b.title);
     });
-  }, [schedules, materials]);
+
+    // Faculty: only show their own subjects
+    if (facultyFullName) {
+      return all.filter(s =>
+        s.faculty.toLowerCase().includes(facultyFullName.toLowerCase())
+      );
+    }
+    return all;
+  }, [schedules, materials, facultyFullName]);
 
   // Dropdown options for the modal — one per unique subject title from schedules
+  // Faculty: only their own subjects
   const subjectOptions = useMemo(() => {
     const seen = new Set();
-    return schedules.reduce((acc, s) => {
-      const key = s.subject_title.toLowerCase().trim();
-      if (!seen.has(key)) {
-        seen.add(key);
-        acc.push({
-          key,
-          code:    s.subject_code,
-          title:   s.subject_title,
-          faculty: `${s.faculty_first} ${s.faculty_last}`,
-          label:   `${s.subject_code} — ${s.subject_title}`,
-          // Store just the title so it matches how materials are stored
-          subject: s.subject_title,
-        });
-      }
-      return acc;
-    }, []);
-  }, [schedules]);
+    return schedules
+      .filter(s => {
+        if (!isFaculty || !facultyFullName) return true;
+        const name = `${s.faculty_first} ${s.faculty_last}`.toLowerCase();
+        return name.includes(facultyFullName.toLowerCase());
+      })
+      .reduce((acc, s) => {
+        const key = s.subject_title.toLowerCase().trim();
+        if (!seen.has(key)) {
+          seen.add(key);
+          acc.push({
+            key,
+            code:    s.subject_code,
+            title:   s.subject_title,
+            faculty: `${s.faculty_first} ${s.faculty_last}`,
+            label:   `${s.subject_code} — ${s.subject_title}`,
+            subject: s.subject_title,
+          });
+        }
+        return acc;
+      }, []);
+  }, [schedules, isFaculty, facultyFullName]);
 
   const handleSubjectChange = (key) => {
     const opt = subjectOptions.find(o => o.key === key);
@@ -192,7 +215,7 @@ export default function Instructional() {
       <div className="page-header">
         <div className="page-header-left">
           <h1>Instructional Management</h1>
-          <p>{subjectMap.length} subject{subjectMap.length !== 1 ? 's' : ''} · {materials.length} material{materials.length !== 1 ? 's' : ''}</p>
+          <p>{subjectMap.length} subject{subjectMap.length !== 1 ? 's' : ''} · {subjectMap.reduce((sum, s) => sum + s.materials.length, 0)} material{subjectMap.reduce((sum, s) => sum + s.materials.length, 0) !== 1 ? 's' : ''}</p>
         </div>
         <div style={{ display:'flex', gap:'8px' }}>
           <button className="btn-secondary" onClick={load} title="Refresh"><FaSync /></button>
@@ -200,7 +223,7 @@ export default function Instructional() {
         </div>
       </div>
 
-      {loading && <div className="im-loading">Loading…</div>}
+      {loading && <Loader padded />}
 
       {!loading && subjectMap.length === 0 && (
         <div className="im-empty">
@@ -270,9 +293,11 @@ export default function Instructional() {
                           <span className="im-mat-type" style={{ background:tc.bg, color:tc.color, border:`1px solid ${tc.border}` }}>
                             {m.type}
                           </span>
+                          {!isFaculty && (
                           <button className="im-del-btn" onClick={() => handleDelete(m.id)} title="Delete">
                             <FaTrash size={12} />
                           </button>
+                          )}
                         </div>
                       );
                     })

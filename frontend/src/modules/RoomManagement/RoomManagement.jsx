@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import './RoomManagement.css';
 import { api } from '../../api/index.js';
+import { useRole } from '../../context/AuthContext.jsx';
+import Loader from '../../components/Loader.jsx';
 import { FaBuilding, FaPlus, FaMapMarkerAlt, FaChair, FaUsers, FaEdit, FaTrash, FaTimes, FaSync } from 'react-icons/fa';
 
 const EMPTY = { room_id:'', name:'', type:'LECTURE_ROOM', building:'CCS Building', floor:'', capacity:'', current_occupancy:'0', status:'Available' };
@@ -8,6 +10,8 @@ const EMPTY = { room_id:'', name:'', type:'LECTURE_ROOM', building:'CCS Building
 function utilStatus(pct) { if(pct>=90) return 'critical'; if(pct>=75) return 'warning'; return 'normal'; }
 
 export default function RoomManagement() {
+  const { isFaculty } = useRole();
+  const viewOnly = isFaculty;
   const [rooms, setRooms]         = useState([]);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
@@ -18,10 +22,37 @@ export default function RoomManagement() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setRooms(await api.getRooms()); }
+    try {
+      if (viewOnly) {
+        // Faculty: derive rooms from their own schedules (avoids admin-only getRooms)
+        const schedules = await api.getSchedules();
+        // Deduplicate by room_code, reconstruct a room-like object
+        const seen = new Set();
+        const facultyRooms = [];
+        for (const s of schedules) {
+          if (!seen.has(s.room_code)) {
+            seen.add(s.room_code);
+            facultyRooms.push({
+              id:                  s.room_code, // use room_code as key (no real id needed for view)
+              room_id:             s.room_code,
+              name:                s.room_name,
+              type:                s.room_type || '',
+              building:            '',
+              floor:               '',
+              capacity:            s.capacity,
+              current_occupancy:   s.enrolled,
+              status:              s.enrolled >= s.capacity ? 'Occupied' : 'Available',
+            });
+          }
+        }
+        setRooms(facultyRooms);
+      } else {
+        setRooms(await api.getRooms());
+      }
+    }
     catch(e) { console.error(e); }
     finally { setLoading(false); }
-  }, []);
+  }, [viewOnly]);
   useEffect(()=>{ load(); },[load]);
 
   const total     = rooms.length;
@@ -56,10 +87,10 @@ export default function RoomManagement() {
   return (
     <div className="room-container">
       <div className="page-header">
-        <div className="page-header-left"><h1>Room Management</h1><p>{total} rooms total</p></div>
+        <div className="page-header-left"><h1>Room Management</h1><p>{total} room{total !== 1 ? 's' : ''}{viewOnly ? ' — your assigned rooms' : ' total'}</p></div>
         <div style={{display:'flex',gap:'8px'}}>
           <button className="btn-secondary" onClick={load} title="Refresh"><FaSync/></button>
-          <button className="btn-primary" onClick={openCreate}><FaPlus/> Add Room</button>
+          {!viewOnly && <button className="btn-primary" onClick={openCreate}><FaPlus/> Add Room</button>}
         </div>
       </div>
 
@@ -69,7 +100,7 @@ export default function RoomManagement() {
         <div className="stat-tile"><span className="stat-tile-num" style={{color:'#d97706'}}>{occupied}</span><span className="stat-tile-label">Occupied</span></div>
       </div>
 
-      {loading&&<div className="empty-state">Loading rooms…</div>}
+      {loading&&<div className="empty-state"><Loader padded /></div>}
       <div className="rooms-grid">
         {!loading&&rooms.length===0&&<div className="empty-state">No rooms found.</div>}
         {rooms.map(room=>{
@@ -95,15 +126,17 @@ export default function RoomManagement() {
                 <div className="room-cap-nums">{room.current_occupancy} / {room.capacity} students</div>
               </div>
               <div style={{display:'flex',gap:'8px',marginTop:'10px'}}>
-                <button className="btn-secondary" style={{flex:1}} onClick={()=>openEdit(room)}><FaEdit/> Edit</button>
-                <button className="btn-danger" style={{flex:1}} onClick={()=>handleDelete(room.id)}><FaTrash/> Delete</button>
+                {!viewOnly && <>
+                  <button className="btn-secondary" style={{flex:1}} onClick={()=>openEdit(room)}><FaEdit/> Edit</button>
+                  <button className="btn-danger" style={{flex:1}} onClick={()=>handleDelete(room.id)}><FaTrash/> Delete</button>
+                </>}
               </div>
             </div>
           );
         })}
       </div>
 
-      {showModal&&(
+      {showModal && !viewOnly &&(
         <div className="modal-overlay" onClick={()=>setShowModal(false)}>
           <div className="modal-box" onClick={e=>e.stopPropagation()}>
             <div className="modal-header"><h2>{editId?'Edit Room':'Add Room'}</h2><button className="modal-close" onClick={()=>setShowModal(false)}><FaTimes/></button></div>

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import './Scheduling.css';
 import { api } from '../../api/index.js';
+import { useRole } from '../../context/AuthContext.jsx';
+import Loader from '../../components/Loader.jsx';
 import {
   FaPlus, FaEdit, FaTrash, FaTimes, FaSync, FaCalendarAlt, FaBook,
 } from 'react-icons/fa';
@@ -151,6 +153,8 @@ function SubjectModal({ mode, form, setForm, onSubmit, onClose, saving }) {
 
 // ── Main Component ──────────────────────────────────────────────────────────
 export default function Scheduling() {
+  const { isAdmin, isFaculty } = useRole();
+  const viewOnly = isFaculty; // faculty: read-only
   const [schedules, setSchedules] = useState([]);
   const [subjects,  setSubjects]  = useState([]);
   const [faculty,   setFaculty]   = useState([]);
@@ -173,19 +177,25 @@ export default function Scheduling() {
   const loadAll = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const [sc, su, fa, ro] = await Promise.all([
-        api.getSchedules(),
-        api.getSubjects(),
-        api.getFaculty(),
-        api.getRooms(),
-      ]);
-      setSchedules(sc);
-      setSubjects(su);
-      setFaculty(fa);
-      setRooms(ro);
+      if (viewOnly) {
+        // Faculty only needs their own schedules — other endpoints are admin-only
+        const sc = await api.getSchedules();
+        setSchedules(sc);
+      } else {
+        const [sc, su, fa, ro] = await Promise.all([
+          api.getSchedules(),
+          api.getSubjects(),
+          api.getFaculty(),
+          api.getRooms(),
+        ]);
+        setSchedules(sc);
+        setSubjects(su);
+        setFaculty(fa);
+        setRooms(ro);
+      }
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
-  }, []);
+  }, [viewOnly]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
@@ -256,13 +266,13 @@ export default function Scheduling() {
       <div className="page-header">
         <div className="page-header-left">
           <h1>Scheduling</h1>
-          <p>{schedules.length} schedule{schedules.length !== 1 ? 's' : ''} this semester</p>
+          <p>{schedules.length} schedule{schedules.length !== 1 ? 's' : ''} this semester{isFaculty ? ' — your subjects' : ''}</p>
         </div>
         <div style={{ display:'flex', gap:'8px' }}>
           <button className="sch-btn-secondary" onClick={loadAll} title="Refresh"><FaSync /></button>
-          {tab === 'schedules'
+          {!viewOnly && (tab === 'schedules'
             ? <button className="sch-btn-primary" onClick={openCreateSched}><FaPlus /> Add Schedule</button>
-            : <button className="sch-btn-primary" onClick={openCreateSubj}><FaPlus /> Add Subject</button>}
+            : <button className="sch-btn-primary" onClick={openCreateSubj}><FaPlus /> Add Subject</button>)}
         </div>
       </div>
 
@@ -288,7 +298,7 @@ export default function Scheduling() {
         </button>
       </div>
 
-      {loading && <div className="sch-loading">Loading…</div>}
+      {loading && <Loader padded />}
 
       {/* ── Schedules Table — grouped by subject ── */}
       {!loading && tab === 'schedules' && (
@@ -309,7 +319,8 @@ export default function Scheduling() {
                 <thead>
                   <tr>
                     <th>Code</th><th>Subject</th><th>Type</th><th>Section</th>
-                    <th>Faculty</th><th>Room</th><th>Capacity</th><th>Day</th><th>Time</th><th>Units</th><th>Actions</th>
+                    <th>Faculty</th><th>Room</th><th>Capacity</th><th>Day</th><th>Time</th><th>Units</th>
+                    {!viewOnly && <th>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -359,13 +370,14 @@ export default function Scheduling() {
                               <strong>{group.units}</strong>
                             </td>
                           )}
+                          {!viewOnly && (
                           <td>
                             <div className="sch-row-actions">
                               <button className="sch-icon-btn sch-icon-btn--edit" onClick={() => openEditSched(s)} title="Edit"><FaEdit /></button>
                               <button className="sch-icon-btn sch-icon-btn--del"  onClick={() => handleDeleteSched(s.id)} title="Delete"><FaTrash /></button>
                             </div>
                           </td>
-                        </tr>
+                          )}                        </tr>
                       );
                     })
                   ))}
@@ -381,11 +393,11 @@ export default function Scheduling() {
         <div className="data-table-wrap">
           <table className="data-table">
             <thead>
-              <tr><th>Code</th><th>Title</th><th>Type</th><th>Hours</th><th>Units</th><th>Actions</th></tr>
+              <tr><th>Code</th><th>Title</th><th>Type</th><th>Hours</th><th>Units</th>{!viewOnly && <th>Actions</th>}</tr>
             </thead>
             <tbody>
               {subjects.length === 0 && (
-                <tr><td colSpan={6} className="sch-empty">No subjects yet.</td></tr>
+                <tr><td colSpan={viewOnly ? 5 : 6} className="sch-empty">No subjects yet.</td></tr>
               )}
               {subjects.map(s => (
                 <tr key={s.id}>
@@ -394,12 +406,14 @@ export default function Scheduling() {
                   <td><span className={`type-badge ${TYPE_CLASS[s.type] || 'lecture'}`}>{TYPE_LABEL[s.type] || s.type}</span></td>
                   <td>{s.hours}</td>
                   <td><strong>{s.units}</strong></td>
+                  {!viewOnly && (
                   <td>
                     <div className="sch-row-actions">
                       <button className="sch-icon-btn sch-icon-btn--edit" onClick={() => openEditSubj(s)} title="Edit"><FaEdit /></button>
                       <button className="sch-icon-btn sch-icon-btn--del"  onClick={() => handleDeleteSubj(s.id)} title="Delete"><FaTrash /></button>
                     </div>
                   </td>
+                  )}
                 </tr>
               ))}
             </tbody>

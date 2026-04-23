@@ -101,6 +101,7 @@ body { font-family: 'Inter', 'Segoe UI', sans-serif; background: var(--bg-primar
   font-family: inherit; text-align: left;
   transition: all .2s ease; position: relative;
   white-space: nowrap; overflow: hidden;
+  text-decoration: none; /* NavLink renders as <a> — remove underline */
 }
 .sb-item:hover { background: var(--bg-tertiary); color: var(--text-primary); }
 .dark .sb-item:hover { background: #1e2130; }
@@ -162,6 +163,38 @@ body { font-family: 'Inter', 'Segoe UI', sans-serif; background: var(--bg-primar
 .sb-profile-role { font-size: .65rem; color: var(--primary-orange); font-weight: 600; display: flex; align-items: center; gap: 3px; }
 
 .sidebar--collapsed .sb-profile { justify-content: center; padding: 10px; }
+
+/* Clickable profile */
+.sb-profile--clickable {
+  cursor: pointer; user-select: none; transition: background .15s, box-shadow .15s;
+}
+.sb-profile--clickable:hover { background: var(--bg-hover, #f3f4f6); box-shadow: 0 0 0 2px var(--primary-orange); }
+.dark .sb-profile--clickable:hover { background: #252840; }
+.sb-profile-chevron { font-size: .6rem; color: var(--text-tertiary); margin-left: auto; flex-shrink: 0; }
+
+/* Profile dropdown menu */
+.sb-profile-menu {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  margin-bottom: 4px;
+}
+.dark .sb-profile-menu { background: #1a1d2e; border-color: #2a2d3e; }
+.sb-profile-menu-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 10px 14px;
+  background: none; border: none; cursor: pointer;
+  font-size: .82rem; font-weight: 500; color: var(--text-primary);
+  transition: background .15s;
+  text-align: left;
+}
+.sb-profile-menu-item:hover { background: var(--bg-tertiary); }
+.dark .sb-profile-menu-item:hover { background: #252840; }
+.sb-profile-menu-item--logout { color: #ef4444; }
+.sb-profile-menu-item--logout:hover { background: #fef2f2; }
+.dark .sb-profile-menu-item--logout:hover { background: #2d1a1a; }
 
 /* Tooltip */
 .sb-tooltip {

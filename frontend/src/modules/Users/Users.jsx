@@ -6,6 +6,7 @@ import {
   FaShieldAlt, FaRedo, FaIdCard, FaLock,
 } from 'react-icons/fa';
 import './Users.css';
+import Loader from '../../components/Loader.jsx';
 
 const ROLE_META = {
   admin:   { label: 'Admin',   icon: FaUserCog,           color: '#ef4444', bg: '#fef2f2', hint: 'admin123' },
@@ -70,18 +71,13 @@ function EditModal({ form, setForm, onSubmit, onClose, saving }) {
           {/* Login ID — student/faculty only */}
           {!isAdmin && (
             <div className="usr-form-group">
-              <label><FaIdCard size={11} /> Login ID <span className="usr-field-note">(7 digits)</span></label>
+              <label><FaIdCard size={11} /> Login ID</label>
               <input
                 value={form.login_id || ''}
-                onChange={e => f('login_id', e.target.value.replace(/\D/g, '').slice(0, 7))}
-                placeholder="7-digit login ID"
-                inputMode="numeric"
-                maxLength={7}
+                onChange={e => f('login_id', e.target.value)}
+                placeholder="Login ID"
+                maxLength={50}
               />
-              <span className="usr-hint">
-                {(form.login_id || '').length}/7 digits
-                {(form.login_id || '').length === 7 && <span style={{ color: '#16a34a' }}> ✓</span>}
-              </span>
             </div>
           )}
 
@@ -101,7 +97,7 @@ function EditModal({ form, setForm, onSubmit, onClose, saving }) {
               </button>
             </div>
             {!isAdmin && (
-              <span className="usr-hint">Faculty/Student passwords must be exactly 7 digits</span>
+              <span className="usr-hint">Leave blank to keep current password</span>
             )}
           </div>
 
@@ -324,7 +320,7 @@ export default function Users() {
       </div>
 
       {error && <div className="usr-error">⚠ {error}</div>}
-      {loading && <div className="usr-loading">Loading users…</div>}
+      {loading && <div className="usr-loading"><Loader padded /></div>}
 
       {/* Tables grouped by role */}
       {!loading && ['admin', 'faculty', 'student'].map(r => {

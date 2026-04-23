@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import './Research.css';
+import Loader from '../../components/Loader.jsx';
 import { api } from '../../api/index.js';
 import { FaPlus, FaUsers, FaBook, FaCalendarAlt, FaFolder, FaTrash, FaTimes, FaSync } from 'react-icons/fa';
 
@@ -68,7 +69,7 @@ export default function Research() {
         </select>
       </div>
 
-      {loading&&<div className="empty-state">Loading research…</div>}
+      {loading&&<div className="empty-state"><Loader padded /></div>}
       <div className="research-grid">
         {!loading&&filtered.length===0&&<div className="empty-state">No research papers found.</div>}
         {filtered.map((r,i)=>(

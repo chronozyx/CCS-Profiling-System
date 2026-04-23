@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './FacultyProfile.css';
 import { api } from '../../api/index.js';
 import { useAuth, useRole } from '../../context/AuthContext.jsx';
+import Loader from '../../components/Loader.jsx';
 import { FaPlus, FaEdit, FaTrash, FaEye, FaSearch, FaCheckCircle, FaExclamationTriangle, FaTimes, FaArrowLeft, FaSync, FaBook } from 'react-icons/fa';
 import { MdPerson } from 'react-icons/md';
 
@@ -31,42 +33,31 @@ function loadStatus(cur, min, max) {
 export default function FacultyProfile() {
   const { isAdmin, isFaculty } = useRole();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [faculty, setFaculty]     = useState([]);
-  const [subjects, setSubjects]   = useState([]);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState('');
-  const [view, setView]           = useState('list');
-  const [selected, setSelected]   = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [form, setForm]           = useState({...EMPTY});
   const [search, setSearch]       = useState('');
-
-  const loadSubjects = useCallback(async (facultyId) => {
-    try {
-      const data = await api.getFacultySubjects(facultyId);
-      setSubjects(data);
-    } catch { setSubjects([]); }
-  }, []);
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
       if (isFaculty) {
         const profile = await api.getMyFacultyProfile();
-        const ui = toUI(profile);
-        setSelected(ui);
-        setView('detail');
-        await loadSubjects(ui.id);
-      } else {
-        const d = await api.getFaculty();
-        setFaculty(d.map(toUI));
+        // Faculty role: go straight to their own detail page
+        navigate(`/faculty/${toUI(profile).id}`, { replace: true });
+        return;
       }
+      const d = await api.getFaculty();
+      setFaculty(d.map(toUI));
     }
     catch(e) { setError(e.message); }
     finally { setLoading(false); }
-  }, [isFaculty, loadSubjects]);
+  }, [isFaculty, navigate]);
   useEffect(()=>{ load(); },[load]);
 
   const filtered = faculty.filter(f => {
@@ -76,13 +67,12 @@ export default function FacultyProfile() {
 
   const openCreate = ()=>{ setForm({...EMPTY}); setModalMode('create'); setShowModal(true); };
   const openEdit   = f =>{ setForm({...f}); setModalMode('edit'); setShowModal(true); };
-  const openDetail = f =>{ setSelected(f); setView('detail'); loadSubjects(f.id); };
-  const goBack     = ()=>{ setView('list'); setSelected(null); };
+  const openDetail = f => navigate(`/faculty/${f.id}`);
   const ff = (k,v) => setForm(p=>({...p,[k]:v}));
 
   const handleDelete = async id => {
     if(!window.confirm('Delete this faculty member?')) return;
-    try { await api.deleteFaculty(id); setFaculty(prev=>prev.filter(f=>f.id!==id)); if(selected?.id===id) goBack(); }
+    try { await api.deleteFaculty(id); setFaculty(prev=>prev.filter(f=>f.id!==id)); }
     catch(e) { alert('Delete failed: '+e.message); }
   };
 
@@ -96,126 +86,14 @@ export default function FacultyProfile() {
         const updated = await api.updateFaculty(form.id, toDB(form));
         const ui = toUI(updated);
         setFaculty(prev=>prev.map(f=>f.id===form.id?ui:f));
-        if(selected?.id===form.id) setSelected(ui);
       }
       setShowModal(false);
     } catch(e) { alert('Save failed: '+e.message); }
     finally { setSaving(false); }
   };
 
-  if (loading) return <div className="empty-state">Loading profile…</div>;
+  if (loading) return <div className="empty-state"><Loader full /></div>;
   if (error)   return <div style={{color:'#ef4444',padding:'1rem'}}>⚠ {error}</div>;
-
-  if(view==='detail'&&selected) {
-    const ls = loadStatus(selected.currentLoad, selected.minLoad, selected.maxLoad);
-    return (
-      <div className="faculty-container">
-        <div className="back-bar">
-          {isAdmin && (
-            <button className="btn-back" onClick={goBack}><FaArrowLeft/> Back to Faculty</button>
-          )}
-          {isAdmin && (
-            <div style={{display:'flex',gap:'8px'}}>
-              <button className="btn-info" onClick={()=>openEdit(selected)}><FaEdit/> Edit</button>
-              <button className="btn-danger" onClick={()=>handleDelete(selected.id)}><FaTrash/> Delete</button>
-            </div>
-          )}
-        </div>
-        <div className="hero-banner" style={{marginBottom:'1.5rem'}}>
-          <div className="hero-avatar">{selected.firstName[0]}{selected.lastName[0]}</div>
-          <div className="hero-info">
-            <h1>{selected.title} {selected.firstName} {selected.lastName}</h1>
-            <p>{selected.employee_id} &bull; {selected.department} &bull; {selected.specialization}</p>
-            <div style={{marginTop:'8px'}}>
-              <span className={`load-badge ${ls}`}>
-                {ls==='normal'&&<><FaCheckCircle/> Normal Load</>}
-                {ls==='overload'&&<><FaExclamationTriangle/> Overload</>}
-                {ls==='underload'&&<><FaExclamationTriangle/> Underload</>}
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="faculty-detail-grid">
-          <div className="card">
-            <div className="card-title"><MdPerson/> Professional Information</div>
-            <div className="info-list">
-              <div className="info-row"><span className="info-label">Email</span><span className="info-value">{selected.email}</span></div>
-              <div className="info-row"><span className="info-label">Phone</span><span className="info-value">{selected.phone}</span></div>
-              <div className="info-row"><span className="info-label">Status</span><span className="info-value">{selected.employmentStatus}</span></div>
-              <div className="info-row"><span className="info-label">Specialization</span><span className="info-value">{selected.specialization}</span></div>
-            </div>
-          </div>
-          <div className="card">
-            <div className="card-title">Teaching Load</div>
-            <div className="load-summary-grid">
-              <div className="load-summary-item"><div className="lsi-val">{selected.currentLoad}</div><div className="lsi-lbl">Current</div></div>
-              <div className="load-summary-item"><div className="lsi-val">{selected.minLoad}</div><div className="lsi-lbl">Min</div></div>
-              <div className="load-summary-item"><div className="lsi-val">{selected.maxLoad}</div><div className="lsi-lbl">Max</div></div>
-            </div>
-            <div style={{marginTop:'14px'}}>
-              <div className="progress-track">
-                <div className={`progress-fill ${ls==='overload'?'progress-fill-red':ls==='underload'?'progress-fill-yellow':'progress-fill-green'}`}
-                  style={{width:`${Math.min((selected.currentLoad/selected.maxLoad)*100,100)}%`}}/>
-              </div>
-              <div style={{fontSize:'.75rem',color:'var(--text-tertiary)',marginTop:'6px',textAlign:'right'}}>{selected.currentLoad} / {selected.maxLoad} units</div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Subjects / Schedules ── */}
-        <div className="card" style={{marginTop:'1rem'}}>
-          <div className="card-title"><FaBook/> Subjects Handled ({subjects.length})</div>
-          {subjects.length === 0
-            ? <p style={{color:'var(--text-tertiary)',fontSize:'.875rem',margin:'8px 0 0'}}>No subjects assigned yet.</p>
-            : (
-              <div className="fac-subjects-table-wrap">
-                <table className="fac-subjects-table">
-                  <thead>
-                    <tr>
-                      <th>Code</th><th>Subject</th><th>Type</th>
-                      <th>Section</th><th>Day</th><th>Time</th>
-                      <th>Room</th><th>Enrolled</th><th>Units</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {subjects.map((s, i) => (
-                      <tr key={i}>
-                        <td><strong>{s.code}</strong></td>
-                        <td>{s.title}</td>
-                        <td>
-                          <span className={`fac-type-badge fac-type-${TYPE_CLASS[s.type] || 'lecture'}`}>
-                            {TYPE_LABEL[s.type] || s.type}
-                          </span>
-                        </td>
-                        <td>{s.section}</td>
-                        <td>{s.day}</td>
-                        <td style={{whiteSpace:'nowrap'}}>{s.start_time} – {s.end_time}</td>
-                        <td>
-                          <div style={{display:'flex',flexDirection:'column'}}>
-                            <span>{s.room_code}</span>
-                            <small style={{color:'var(--text-tertiary)',fontSize:'.72rem'}}>{s.room_name}</small>
-                          </div>
-                        </td>
-                        <td>
-                          <span style={{
-                            color: s.enrolled >= s.capacity ? '#ef4444' : s.enrolled >= s.capacity * 0.9 ? '#d97706' : '#16a34a',
-                            fontWeight: 700
-                          }}>
-                            {s.enrolled}/{s.capacity}
-                          </span>
-                        </td>
-                        <td><strong>{s.units}</strong></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-        </div>
-        {showModal&&<FacultyModal mode={modalMode} form={form} ff={ff} onSubmit={handleSubmit} onClose={()=>setShowModal(false)} saving={saving}/>}
-      </div>
-    );
-  }
 
   return (
     <div className="faculty-container">
@@ -234,7 +112,7 @@ export default function FacultyProfile() {
         </div>
         {search&&<button className="sp-clear-btn" onClick={()=>setSearch('')}><FaTimes/> Clear</button>}
       </div>
-      {loading&&<div className="empty-state">Loading faculty from database…</div>}
+      {loading&&<div className="empty-state"><Loader padded /></div>}
       <div className="faculty-grid">
         {!loading&&filtered.length===0&&<div className="empty-state">No faculty members found.</div>}
         {filtered.map(f=>{
@@ -277,7 +155,7 @@ function FacultyModal({ mode, form, ff, onSubmit, onClose, saving }) {
         <div className="modal-body">
           <form onSubmit={onSubmit} style={{display:'flex',flexDirection:'column',gap:'14px'}}>
             <div className="form-section-label">Personal Information</div>
-            <div className="form-group"><label>Employee ID *</label><input required value={form.employee_id||''} onChange={e=>ff('employee_id',e.target.value)} placeholder="FAC-2026-004"/></div>
+            <div className="form-group"><label>Employee ID *</label><input required value={form.employee_id||''} onChange={e=>ff('employee_id',e.target.value.replace(/\D/g,'').slice(0,7))} placeholder="0000001" inputMode="numeric" maxLength={7}/><span style={{fontSize:'.75rem',color:'var(--text-tertiary)'}}>{(form.employee_id||'').length}/7 digits{(form.employee_id||'').length===7&&<span style={{color:'#16a34a'}}> ✓</span>}</span></div>
             <div className="form-grid">
               <div className="form-group"><label>Title</label>
                 <select value={form.title} onChange={e=>ff('title',e.target.value)}><option>Prof.</option><option>Dr.</option><option>Mr.</option><option>Ms.</option></select>

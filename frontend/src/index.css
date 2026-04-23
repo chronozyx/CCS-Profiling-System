@@ -149,3 +149,49 @@ a:hover { color: var(--dark-orange); text-decoration: underline; }
 
 /* Focus ring */
 :focus-visible { outline: 2px solid var(--primary-orange); outline-offset: 2px; }
+
+/* ── CCS Logo Loader ──────────────────────────────────────────────────────── */
+.ccs-loader-ring {
+  position: absolute;
+  top: 0; left: 0;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 107, 53, 0.15);
+  border-top-color: var(--primary-orange);
+  border-right-color: rgba(255, 107, 53, 0.5);
+  animation: ccs-spin 1s linear infinite;
+  box-shadow: 0 0 16px rgba(255, 107, 53, 0.12);
+}
+.ccs-loader-img {
+  border-radius: 50%;
+  object-fit: cover;
+  /* no animation — logo stays perfectly still */
+}
+
+/* Three bouncing dots */
+.ccs-loader-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.ccs-loader-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary-orange);
+  animation: ccs-dot 1.2s ease-in-out infinite;
+}
+.ccs-loader-dots span:nth-child(1) { animation-delay: 0s; }
+.ccs-loader-dots span:nth-child(2) { animation-delay: 0.2s; }
+.ccs-loader-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes ccs-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes ccs-dot {
+  0%, 80%, 100% { opacity: 0.25; transform: scale(0.8) translateY(0); }
+  40%           { opacity: 1;    transform: scale(1.2) translateY(-4px); }
+}
+@keyframes ccs-fadein {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

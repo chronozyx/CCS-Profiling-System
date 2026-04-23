@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import './Events.css';
+import Loader from '../../components/Loader.jsx';
 import { api } from '../../api/index.js';
 import { FaCalendarAlt, FaClock, FaMapMarkerAlt, FaChalkboardTeacher, FaUsers, FaPlus, FaTimes, FaTrash, FaEdit, FaSync } from 'react-icons/fa';
 
@@ -57,7 +58,7 @@ export default function Events() {
         </div>
       </div>
 
-      {loading&&<div className="empty-state">Loading events…</div>}
+      {loading&&<div className="empty-state"><Loader padded /></div>}
       <div className="events-grid">
         {!loading&&events.length===0&&<div className="empty-state">No events yet.</div>}
         {events.map(ev=>(

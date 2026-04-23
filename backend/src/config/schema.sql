@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- faculty assignments live in student_faculty (many-to-many)
 CREATE TABLE IF NOT EXISTS students (
   id           INT AUTO_INCREMENT PRIMARY KEY,
-  user_id      INT          NOT NULL UNIQUE,   -- FK → users.id (role='student')
+  user_id      INT          NULL UNIQUE,   -- FK → users.id (role='student'), NULL if no account yet
   student_id   VARCHAR(50)  NOT NULL UNIQUE,
   first_name   VARCHAR(100) NOT NULL,
   last_name    VARCHAR(100) NOT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS student_faculty (
 -- user_id → the faculty member's own login account (users.id, role='faculty')
 CREATE TABLE IF NOT EXISTS faculty (
   id                INT AUTO_INCREMENT PRIMARY KEY,
-  user_id           INT          NOT NULL UNIQUE,      -- FK → users.id (role='faculty')
+  user_id           INT          NULL UNIQUE,      -- FK → users.id (role='faculty'), NULL if no account yet
   employee_id       VARCHAR(50)  NOT NULL UNIQUE,
   first_name        VARCHAR(100) NOT NULL,
   last_name         VARCHAR(100) NOT NULL,

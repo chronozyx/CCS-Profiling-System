@@ -36,6 +36,7 @@ async function request(path, options = {}) {
 export const api = {
   getDashboard: () => request("/dashboard"),
   getStudents: (p = {}) => request("/students?" + new URLSearchParams(p)),
+  getStudentById: (id) => request(`/students/${id}`),
   getStudentStats: () => request("/students/stats"),
   createStudent: (b) =>
     request("/students", { method: "POST", body: JSON.stringify(b) }),
@@ -46,6 +47,7 @@ export const api = {
   enrollStudent:   (id, scheduleIds) => request(`/students/${id}/enrollments`, { method: 'POST', body: JSON.stringify({ schedule_ids: scheduleIds }) }),
   unenrollStudent: (id, enrollmentId) => request(`/students/${id}/enrollments/${enrollmentId}`, { method: 'DELETE' }),
   getFaculty: () => request("/faculty"),
+  getFacultyById: (id) => request(`/faculty/${id}`),
   getMyFacultyProfile: () => request("/faculty/me"),
   getFacultySubjects: (id) => request(`/faculty/${id}/subjects`),
   createFaculty: (b) =>
@@ -96,4 +98,6 @@ export const api = {
   deleteUser:     (id)     => request(`/users/${id}`, { method: 'DELETE' }),
   resetPassword:      (id, pw) => request(`/users/${id}/reset-password`, { method: 'PUT', body: JSON.stringify({ password: pw }) }),
   regenerateLoginId:  (id)     => request(`/users/${id}/regenerate-login-id`, { method: 'POST' }),
+  changePassword: (current_password, new_password) =>
+    request('/auth/change-password', { method: 'PUT', body: JSON.stringify({ current_password, new_password }) }),
 };

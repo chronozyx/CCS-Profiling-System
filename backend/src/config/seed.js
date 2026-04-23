@@ -6,6 +6,17 @@ async function seed() {
   try {
     console.log("🌱 Seeding sample data...");
 
+    // ── Wipe existing data (order matters — FK constraints) ──
+    await conn.query('SET FOREIGN_KEY_CHECKS = 0');
+    for (const t of [
+      'enrollments','student_faculty','schedules','students',
+      'faculty','subjects','rooms','research_authors','research',
+      'events','materials','users',
+    ]) {
+      await conn.query(`TRUNCATE TABLE ${t}`);
+    }
+    await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+
     const hash = (pw) => bcrypt.hash(pw, 10);
 
     // ── Users ──────────────────────────────────────
@@ -56,11 +67,11 @@ async function seed() {
 
     // ── Faculty profiles ───────────────────────────
     const facultyData = [
-      ['FAC-001', 'Maria',   'Santos',   'Dr.',   'Information Technology', 'm.santos@ccs.edu',  '09187654321', 'Data Science & AI',       'Full-time', 15, 21, 18],
-      ['FAC-002', 'Jose',    'Reyes',    'Prof.', 'Computer Science',       'j.reyes@ccs.edu',   '09271234567', 'Software Engineering',     'Full-time', 15, 21, 15],
-      ['FAC-003', 'Ana',     'Lim',      'Ms.',   'Information Technology', 'a.lim@ccs.edu',     '09351234567', 'Web Development',          'Part-time',  9, 12,  9],
-      ['FAC-004', 'Carlos',  'Mendoza',  'Mr.',   'Computer Science',       'c.mendoza@ccs.edu', '09461234567', 'Cybersecurity',            'Full-time', 15, 21, 21],
-      ['FAC-005', 'Rosa',    'Garcia',   'Dr.',   'Information Systems',    'r.garcia@ccs.edu',  '09561234567', 'Database Systems',         'Full-time', 15, 21, 12],
+      ['1000001', 'Maria',   'Santos',   'Dr.',   'Information Technology', 'm.santos@ccs.edu',  '09187654321', 'Data Science & AI',       'Full-time', 15, 21, 18],
+      ['1000002', 'Jose',    'Reyes',    'Prof.', 'Computer Science',       'j.reyes@ccs.edu',   '09271234567', 'Software Engineering',     'Full-time', 15, 21, 15],
+      ['1000003', 'Ana',     'Lim',      'Ms.',   'Information Technology', 'a.lim@ccs.edu',     '09351234567', 'Web Development',          'Part-time',  9, 12,  9],
+      ['1000004', 'Carlos',  'Mendoza',  'Mr.',   'Computer Science',       'c.mendoza@ccs.edu', '09461234567', 'Cybersecurity',            'Full-time', 15, 21, 21],
+      ['1000005', 'Rosa',    'Garcia',   'Dr.',   'Information Systems',    'r.garcia@ccs.edu',  '09561234567', 'Database Systems',         'Full-time', 15, 21, 12],
     ];
     for (const [eid, fn, ln, title, dept, email, phone, spec, status, min, max, load] of facultyData) {
       const userId = await uid(email);
@@ -100,11 +111,12 @@ async function seed() {
     `);
 
     // ── Schedules (faculty_id references faculty.id) ──
-    const [[f1]] = await conn.query(`SELECT id FROM faculty WHERE employee_id='FAC-001'`);
-    const [[f2]] = await conn.query(`SELECT id FROM faculty WHERE employee_id='FAC-002'`);
-    const [[f3]] = await conn.query(`SELECT id FROM faculty WHERE employee_id='FAC-003'`);
-    const [[f4]] = await conn.query(`SELECT id FROM faculty WHERE employee_id='FAC-004'`);
-    const [[f5]] = await conn.query(`SELECT id FROM faculty WHERE employee_id='FAC-005'`);
+    const [[f1]] = await conn.query(`SELECT id FROM faculty WHERE employee_id='1000001'`);
+    const [[f2]] = await conn.query(`SELECT id FROM faculty WHERE employee_id='1000002'`);
+    const [[f3]] = await conn.query(`SELECT id FROM faculty WHERE employee_id='1000003'`);
+    const [[f4]] = await conn.query(`SELECT id FROM faculty WHERE employee_id='1000004'`);
+    const [[f5]] = await conn.query(`SELECT id FROM faculty WHERE employee_id='1000005'`);
+    if (!f1 || !f2 || !f3 || !f4 || !f5) throw new Error('Faculty rows not found — check employee_id values');
 
     await conn.query(`
       INSERT IGNORE INTO schedules (subject_id,faculty_id,room_id,section,day,start_time,end_time) VALUES
@@ -133,16 +145,16 @@ async function seed() {
 
     // ── Students (user_id only — no faculty_id column anymore) ──────────────
     const studentData = [
-      ['STU-2026-001','Juan',  'Dela Cruz', 'Santos', 20,'Male',  'juan.delacruz@ccs.edu',    '09123456789','123 Main St, Manila',        'BSIT','3rd Year','BSIT-3A','Programming,Web Dev',  'Hackathon Club','ICTSO',             '',              '2026-01-10'],
-      ['STU-2026-002','Maria', 'Reyes',     'Cruz',   19,'Female','maria.reyes@ccs.edu',       '09234567890','456 Oak Ave, Quezon City',   'BSCS','2nd Year','BSCS-2A','Python,Data Analysis','Math Club',     'Honor Society',     '',              '2026-01-10'],
-      ['STU-2026-003','Pedro', 'Bautista',  'Lopez',  21,'Male',  'pedro.bautista@ccs.edu',    '09345678901','789 Pine Rd, Makati',        'BSIT','4th Year','BSIT-4A','Java,Android Dev',    'Robotics Club', 'ICTSO',             'Late sub x1',   '2026-01-15'],
-      ['STU-2026-004','Ana',   'Gonzales',  'Flores', 20,'Female','ana.gonzales@ccs.edu',      '09456789012','321 Elm St, Pasig',          'BSCS','3rd Year','BSCS-3A','UI/UX,Figma',         'Design Club',   'ACM',               '',              '2026-01-15'],
-      ['STU-2026-005','Miguel','Torres',    'Ramos',  22,'Male',  'miguel.torres@ccs.edu',     '09567890123','654 Maple Dr, Taguig',       'BSIT','4th Year','BSIT-4B','Mobile Dev,Flutter',  'Sports Club',   'Basketball Varsity','Tardiness x2',  '2026-02-10'],
-      ['STU-2026-006','Sofia', 'Villanueva','Tan',    19,'Female','sofia.villanueva@ccs.edu',  '09678901234','987 Cedar Ln, Mandaluyong',  'BSIT','1st Year','BSIT-1A','HTML,CSS',            'Theater Arts',  '',                  '',              '2026-02-10'],
-      ['STU-2026-007','Luis',  'Fernandez', 'Aquino', 20,'Male',  'luis.fernandez@ccs.edu',    '09789012345','147 Birch Blvd, Marikina',   'BSCS','2nd Year','BSCS-2A','C++,Algorithms',      'Debate Club',   '',                  '',              '2026-02-15'],
-      ['STU-2026-008','Clara', 'Morales',   'Diaz',   21,'Female','clara.morales@ccs.edu',     '09890123456','258 Walnut St, Caloocan',    'BSIT','3rd Year','BSIT-3A','React,Node.js',       'Web Dev Club',  'ICTSO',             '',              '2026-02-15'],
-      ['STU-2026-009','Marco', 'Castillo',  'Rivera', 22,'Male',  'marco.castillo@ccs.edu',    '09901234567','369 Spruce Ave, Valenzuela', 'BSIT','4th Year','BSIT-4A','Cybersecurity,Networking','CTF Team', 'ISACA Student',     '',              '2026-03-01'],
-      ['STU-2026-010','Lea',   'Pascual',   'Navarro',19,'Female','lea.pascual@ccs.edu',       '09012345678','741 Ash Ct, Malabon',        'BSCS','1st Year','BSCS-1A','Scratch,Python Basics','Chess Club',  '',                  '',              '2026-03-01'],
+      ['2026001','Juan',  'Dela Cruz', 'Santos', 20,'Male',  'juan.delacruz@ccs.edu',    '09123456789','123 Main St, Manila',        'BSIT','3rd Year','BSIT-3A','Programming,Web Dev',  'Hackathon Club','ICTSO',             '',              '2026-01-10'],
+      ['2026002','Maria', 'Reyes',     'Cruz',   19,'Female','maria.reyes@ccs.edu',       '09234567890','456 Oak Ave, Quezon City',   'BSCS','2nd Year','BSCS-2A','Python,Data Analysis','Math Club',     'Honor Society',     '',              '2026-01-10'],
+      ['2026003','Pedro', 'Bautista',  'Lopez',  21,'Male',  'pedro.bautista@ccs.edu',    '09345678901','789 Pine Rd, Makati',        'BSIT','4th Year','BSIT-4A','Java,Android Dev',    'Robotics Club', 'ICTSO',             'Late sub x1',   '2026-01-15'],
+      ['2026004','Ana',   'Gonzales',  'Flores', 20,'Female','ana.gonzales@ccs.edu',      '09456789012','321 Elm St, Pasig',          'BSCS','3rd Year','BSCS-3A','UI/UX,Figma',         'Design Club',   'ACM',               '',              '2026-01-15'],
+      ['2026005','Miguel','Torres',    'Ramos',  22,'Male',  'miguel.torres@ccs.edu',     '09567890123','654 Maple Dr, Taguig',       'BSIT','4th Year','BSIT-4B','Mobile Dev,Flutter',  'Sports Club',   'Basketball Varsity','Tardiness x2',  '2026-02-10'],
+      ['2026006','Sofia', 'Villanueva','Tan',    19,'Female','sofia.villanueva@ccs.edu',  '09678901234','987 Cedar Ln, Mandaluyong',  'BSIT','1st Year','BSIT-1A','HTML,CSS',            'Theater Arts',  '',                  '',              '2026-02-10'],
+      ['2026007','Luis',  'Fernandez', 'Aquino', 20,'Male',  'luis.fernandez@ccs.edu',    '09789012345','147 Birch Blvd, Marikina',   'BSCS','2nd Year','BSCS-2A','C++,Algorithms',      'Debate Club',   '',                  '',              '2026-02-15'],
+      ['2026008','Clara', 'Morales',   'Diaz',   21,'Female','clara.morales@ccs.edu',     '09890123456','258 Walnut St, Caloocan',    'BSIT','3rd Year','BSIT-3A','React,Node.js',       'Web Dev Club',  'ICTSO',             '',              '2026-02-15'],
+      ['2026009','Marco', 'Castillo',  'Rivera', 22,'Male',  'marco.castillo@ccs.edu',    '09901234567','369 Spruce Ave, Valenzuela', 'BSIT','4th Year','BSIT-4A','Cybersecurity,Networking','CTF Team', 'ISACA Student',     '',              '2026-03-01'],
+      ['2026010','Lea',   'Pascual',   'Navarro',19,'Female','lea.pascual@ccs.edu',       '09012345678','741 Ash Ct, Malabon',        'BSCS','1st Year','BSCS-1A','Scratch,Python Basics','Chess Club',  '',                  '',              '2026-03-01'],
     ];
 
     for (const [sid, fn, ln, mn, age, gender, email, phone, addr, prog, yr, sec, skills, act, aff, vio, date] of studentData) {
@@ -169,29 +181,29 @@ async function seed() {
 
     // Each student gets 2–3 faculty assigned (demonstrating many-to-many)
     const assignments = [
-      // [student_code,          faculty_email]
-      ['STU-2026-001', 'm.santos@ccs.edu'],
-      ['STU-2026-001', 'j.reyes@ccs.edu'],
-      ['STU-2026-002', 'j.reyes@ccs.edu'],
-      ['STU-2026-002', 'a.lim@ccs.edu'],
-      ['STU-2026-003', 'r.garcia@ccs.edu'],
-      ['STU-2026-003', 'm.santos@ccs.edu'],
-      ['STU-2026-003', 'c.mendoza@ccs.edu'],
-      ['STU-2026-004', 'j.reyes@ccs.edu'],
-      ['STU-2026-004', 'a.lim@ccs.edu'],
-      ['STU-2026-005', 'r.garcia@ccs.edu'],
-      ['STU-2026-005', 'c.mendoza@ccs.edu'],
-      ['STU-2026-006', 'm.santos@ccs.edu'],
-      ['STU-2026-006', 'a.lim@ccs.edu'],
-      ['STU-2026-007', 'j.reyes@ccs.edu'],
-      ['STU-2026-007', 'c.mendoza@ccs.edu'],
-      ['STU-2026-008', 'm.santos@ccs.edu'],
-      ['STU-2026-008', 'a.lim@ccs.edu'],
-      ['STU-2026-008', 'r.garcia@ccs.edu'],
-      ['STU-2026-009', 'c.mendoza@ccs.edu'],
-      ['STU-2026-009', 'j.reyes@ccs.edu'],
-      ['STU-2026-010', 'm.santos@ccs.edu'],
-      ['STU-2026-010', 'r.garcia@ccs.edu'],
+      // [student_code,   faculty_email]
+      ['2026001', 'm.santos@ccs.edu'],
+      ['2026001', 'j.reyes@ccs.edu'],
+      ['2026002', 'j.reyes@ccs.edu'],
+      ['2026002', 'a.lim@ccs.edu'],
+      ['2026003', 'r.garcia@ccs.edu'],
+      ['2026003', 'm.santos@ccs.edu'],
+      ['2026003', 'c.mendoza@ccs.edu'],
+      ['2026004', 'j.reyes@ccs.edu'],
+      ['2026004', 'a.lim@ccs.edu'],
+      ['2026005', 'r.garcia@ccs.edu'],
+      ['2026005', 'c.mendoza@ccs.edu'],
+      ['2026006', 'm.santos@ccs.edu'],
+      ['2026006', 'a.lim@ccs.edu'],
+      ['2026007', 'j.reyes@ccs.edu'],
+      ['2026007', 'c.mendoza@ccs.edu'],
+      ['2026008', 'm.santos@ccs.edu'],
+      ['2026008', 'a.lim@ccs.edu'],
+      ['2026008', 'r.garcia@ccs.edu'],
+      ['2026009', 'c.mendoza@ccs.edu'],
+      ['2026009', 'j.reyes@ccs.edu'],
+      ['2026010', 'm.santos@ccs.edu'],
+      ['2026010', 'r.garcia@ccs.edu'],
     ];
 
     for (const [stuCode, facEmail] of assignments) {

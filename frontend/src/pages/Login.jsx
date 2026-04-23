@@ -14,10 +14,10 @@ const ROLES = [
     pwPattern: null,     pwPlaceholder: "Enter password",   pwNote: null },
   { id: "faculty", label: "Faculty", icon: FaChalkboardTeacher, color: "#3b82f6",
     idField: "login_id", idPlaceholder: "e.g. 1234567",     idLabel: "Login ID",
-    pwPattern: "\\d{7}", pwPlaceholder: "7-digit password", pwNote: "Must be exactly 7 digits" },
+    pwPattern: null,     pwPlaceholder: "Enter password",   pwNote: null },
   { id: "student", label: "Student", icon: FaUserGraduate,      color: "#10b981",
     idField: "login_id", idPlaceholder: "e.g. 1111111",     idLabel: "Login ID",
-    pwPattern: "\\d{7}", pwPlaceholder: "7-digit password", pwNote: "Must be exactly 7 digits" },
+    pwPattern: null,     pwPlaceholder: "Enter password",   pwNote: null },
 ];
 
 export default function Login() {
@@ -50,13 +50,9 @@ export default function Login() {
     e.preventDefault();
     setError("");
 
-    // Validate 7-digit rule for faculty/student before hitting the server
-    if (selectedRole.pwPattern && !/^\d{7}$/.test(password)) {
-      setError("Password must be exactly 7 digits.");
-      return;
-    }
-    if (selectedRole.idField === "login_id" && !/^\d{7}$/.test(identifier)) {
-      setError("Login ID must be exactly 7 digits.");
+    // No password format restriction — accept any password
+    if (selectedRole.idField === "login_id" && !identifier.trim()) {
+      setError("Login ID is required.");
       return;
     }
 
@@ -140,26 +136,19 @@ export default function Login() {
                 : <FaEnvelope className="login-input-icon" />}
               <input
                 id="identifier"
-                type={selectedRole.idField === "login_id" ? "tel" : "email"}
-                inputMode={selectedRole.idField === "login_id" ? "numeric" : "email"}
+                type={selectedRole.idField === "login_id" ? "text" : "email"}
+                inputMode={selectedRole.idField === "login_id" ? "text" : "email"}
                 placeholder={selectedRole.idPlaceholder}
                 value={identifier}
-                onChange={e => {
-                  const val = selectedRole.idField === "login_id"
-                    ? e.target.value.replace(/\D/g, '').slice(0, 7)
-                    : e.target.value;
-                  setIdentifier(val);
-                  setError("");
-                }}
-                maxLength={selectedRole.idField === "login_id" ? 7 : 191}
+                onChange={e => { setIdentifier(e.target.value); setError(""); }}
+                maxLength={191}
                 required
                 autoComplete={selectedRole.idField === "login_id" ? "username" : "email"}
               />
             </div>
             {selectedRole.idField === "login_id" && (
               <span className="login-pw-note">
-                {identifier.length}/7 digits
-                {identifier.length === 7 && <span className="login-pw-ok"> ✓</span>}
+                Enter your Login ID
               </span>
             )}
           </div>
@@ -171,18 +160,11 @@ export default function Login() {
               <input
                 id="password"
                 type={showPass ? "text" : "password"}
-                inputMode={selectedRole.pwPattern ? "numeric" : "text"}
+                inputMode="text"
                 placeholder={selectedRole.pwPlaceholder}
                 value={password}
-                onChange={e => {
-                  // For faculty/student only allow digits, max 7
-                  const val = selectedRole.pwPattern
-                    ? e.target.value.replace(/\D/g, '').slice(0, 7)
-                    : e.target.value;
-                  setPassword(val);
-                  setError("");
-                }}
-                maxLength={selectedRole.pwPattern ? 7 : 128}
+                onChange={e => { setPassword(e.target.value); setError(""); }}
+                maxLength={128}
                 required
                 autoComplete="current-password"
               />
@@ -197,10 +179,7 @@ export default function Login() {
               </button>
             </div>
             {selectedRole.pwNote && (
-              <span className="login-pw-note">
-                {password.length}/7 digits
-                {password.length === 7 && <span className="login-pw-ok"> ✓</span>}
-              </span>
+              <span className="login-pw-note">{selectedRole.pwNote}</span>
             )}
           </div>
 

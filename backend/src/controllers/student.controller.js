@@ -181,7 +181,8 @@ export const createStudent = async (req, res) => {
     const program      = requireEnum(b.program    || 'BSIT',     'Program',    PROGRAMS);
     const year_level   = requireEnum(b.year_level || '1st Year', 'Year level', YEAR_LEVELS);
     const section      = requireString(b.section, 'Section', 10);
-    const user_id      = parseId(b.user_id);
+    // user_id is optional — only set when a user account is linked
+    const user_id      = b.user_id ? parseId(b.user_id) : null;
     const gender       = requireEnum(b.gender || 'Male', 'Gender', GENDERS);
     const middle_name  = b.middle_name ? requireString(b.middle_name, 'Middle name', 100) : '';
     const phone        = b.phone       ? requireString(b.phone,       'Phone',        20) : '';

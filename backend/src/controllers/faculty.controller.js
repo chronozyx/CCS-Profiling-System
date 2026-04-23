@@ -98,10 +98,11 @@ export const createFaculty = async (req, res) => {
 
     const [result] = await pool.query(
       `INSERT INTO faculty
-        (employee_id,first_name,last_name,title,department,email,phone,
+        (user_id,employee_id,first_name,last_name,title,department,email,phone,
          specialization,employment_status,min_load,max_load,current_load)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [employee_id, first_name, last_name, title, department, email,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [b.user_id ? Number(b.user_id) : null,
+       employee_id, first_name, last_name, title, department, email,
        phone, specialization, employment_status, min_load, max_load, current_load]
     );
     const [rows] = await pool.query('SELECT * FROM faculty WHERE id = ?', [result.insertId]);

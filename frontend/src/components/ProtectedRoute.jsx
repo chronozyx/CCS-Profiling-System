@@ -1,35 +1,45 @@
+import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { MdLock } from 'react-icons/md';
 
 /**
- * ProtectedRoute
+ * ProtectedRoute — React Router version
  *
  * Props:
- *   module   — the module id being rendered (e.g. 'student', 'faculty')
- *   children — the module component
- *   onRedirect — called when access is denied, so App can navigate away
+ *   module   — the module id to check against can() (e.g. 'dashboard', 'audit')
+ *   children — the page component to render if allowed
  *
  * Behavior:
- *   - Not logged in        → null (App already shows Login)
- *   - Role not allowed     → AccessDenied banner + calls onRedirect after 2s
- *   - Role allowed         → renders children
+ *   - Not logged in    → redirect to /
+ *   - Role not allowed → show Access Denied for 2s, then redirect to role home
+ *   - Role allowed     → render children
  */
-export default function ProtectedRoute({ module, children, onRedirect }) {
+export default function ProtectedRoute({ module, children }) {
   const { user, can, isStudent, isFaculty } = useAuth();
 
-  if (!user) return null;
+  if (!user) return <Navigate to="/" replace />;
 
   if (!can(module)) {
-    const fallback = isStudent ? 'student' : isFaculty ? 'faculty' : 'dashboard';
-    setTimeout(() => onRedirect?.(fallback), 2000);
-    return <AccessDenied isStudent={isStudent} isFaculty={isFaculty} />;
+    const fallback = isStudent ? '/students' : isFaculty ? '/faculty' : '/dashboard';
+    return <AccessDenied fallback={fallback} isStudent={isStudent} isFaculty={isFaculty} />;
   }
 
   return children;
 }
 
-function AccessDenied({ isStudent, isFaculty }) {
-  const dest = isStudent ? 'My Profile' : isFaculty ? 'My Profile' : 'Dashboard';
+// Shows a message then redirects using React Router Navigate
+function AccessDenied({ fallback, isStudent, isFaculty }) {
+  const [redirect, setRedirect] = useState(false);
+  const dest = isStudent || isFaculty ? 'My Profile' : 'Dashboard';
+
+  useEffect(() => {
+    const t = setTimeout(() => setRedirect(true), 2000);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (redirect) return <Navigate to={fallback} replace />;
+
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',

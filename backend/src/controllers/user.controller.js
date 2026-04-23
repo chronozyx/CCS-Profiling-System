@@ -97,8 +97,8 @@ export const updateUser = async (req, res) => {
         login_id = null; // admin never has a login_id
       } else {
         const lid = String(b.login_id || '').trim();
-        if (!/^\d{7}$/.test(lid))
-          return res.status(400).json({ message: 'Login ID must be exactly 7 digits' });
+        if (!lid)
+          return res.status(400).json({ message: 'Login ID is required' });
         // Check uniqueness (exclude self)
         const [[existing]] = await pool.query(
           'SELECT id FROM users WHERE login_id = ? AND id != ?', [lid, id]
