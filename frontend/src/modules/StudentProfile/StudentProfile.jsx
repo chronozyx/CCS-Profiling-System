@@ -231,23 +231,38 @@ export default function StudentProfile() {
   const [filterSkill, setFilterSkill]     = useState('All Skills');
   const [filterGender, setFilterGender]   = useState('All');
 
+  const [page, setPage]   = useState(1);
+  const [total, setTotal] = useState(0);
+  const LIMIT = 20;
+
   const loadStudents = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const [data, scheds] = await Promise.all([
-        api.getStudents(),
+      const [res, scheds] = await Promise.all([
+        api.getStudents({
+          page,
+          limit:     LIMIT,
+          search:    search    || undefined,
+          program:   filterProgram  !== 'All'        ? filterProgram  : undefined,
+          yearLevel: filterYear     !== 'All'        ? filterYear     : undefined,
+          skill:     filterSkill    !== 'All Skills' ? filterSkill    : undefined,
+          gender:    filterGender   !== 'All'        ? filterGender   : undefined,
+        }),
         api.getSchedules().catch(() => []),
       ]);
-      setStudents(data.map(toUI));
+
+      setStudents(res.data.map(toUI));
+      setTotal(res.pagination.total);
       setSchedules(scheds);
-      // Student role: navigate directly to their own detail page
-      if (isStudent && data.length > 0) {
-        navigate(`/students/${data[0].id}`, { replace: true });
+
+      if (isStudent && res.data.length > 0) {
+        navigate(`/students/${res.data[0].id}`, { replace: true });
       }
     } catch(e) { setError(e.message); }
-    finally { setLoading(false); }
-  }, [isStudent]);
+    finally    { setLoading(false); }
+  }, [page, search, filterProgram, filterYear, filterSkill, filterGender, isStudent]);
 
+  useEffect(() => { setPage(1); }, [search, filterProgram, filterYear, filterSkill, filterGender]);
   useEffect(() => { loadStudents(); }, [loadStudents]);
 
   const allSkills       = students.flatMap(s=>s.skills);
@@ -255,16 +270,7 @@ export default function StudentProfile() {
   const topSkill        = Object.entries(skillCount).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
   const skillCategories = Object.keys(skillCount).length;
 
-  const filtered = useMemo(()=>students.filter(s=>{
-    const q=search.toLowerCase();
-    const ms=!q||s.firstName.toLowerCase().includes(q)||s.lastName.toLowerCase().includes(q)||
-      (s.student_id||'').toLowerCase().includes(q)||s.program.toLowerCase().includes(q)||
-      s.skills.some(sk=>sk.toLowerCase().includes(q))||s.affiliations.some(a=>a.toLowerCase().includes(q));
-    return ms&&(filterProgram==='All'||s.program===filterProgram)&&
-      (filterYear==='All'||s.yearLevel===filterYear)&&
-      (filterSkill==='All Skills'||s.skills.includes(filterSkill))&&
-      (filterGender==='All'||s.gender===filterGender);
-  }),[students,search,filterProgram,filterYear,filterSkill,filterGender]);
+  
 
   const hasFilters = search||filterProgram!=='All'||filterYear!=='All'||filterSkill!=='All Skills'||filterGender!=='All';
   const openCreate = ()=>{ setForm({...EMPTY_FORM, schedule_ids:[]}); setModalMode('create'); setShowModal(true); };
@@ -301,7 +307,7 @@ export default function StudentProfile() {
 
   // ── LIST VIEW ──────────────────────────────────────────────────────────────
   const pageTitle = isFaculty ? 'My Assigned Students' : 'Student Management';
-
+  
   return (
     <div className="sp-container">
       <div className="sp-header">
@@ -356,15 +362,15 @@ export default function StudentProfile() {
       </div>
 
       <div className="sp-result-count">
-        {loading ? <Loader /> : <>Showing <strong>{filtered.length}</strong> of {students.length} students{hasFilters&&<span className="sp-filter-active-label"> (filtered)</span>}</>}
+        {loading ? <Loader /> : <>Showing <strong>{students.length}</strong> of {total} students{hasFilters&&<span className="sp-filter-active-label"> (students)</span>}</>}
       </div>
 
       {loading && <Loader padded />}
 
       {!loading && view==='cards' && (
         <div className="sp-cards-grid">
-          {filtered.length===0&&<div className="sp-no-results">No students match your filters.</div>}
-          {filtered.map(s=>(
+          {students.length===0&&<div className="sp-no-results">No students match your filters.</div>}
+          {students.map(s=>(
             <div key={s.id} className="sp-card" onClick={()=>openDetail(s)}>
               <div className="sp-card-top">
                 <div className="sp-avatar">{s.firstName[0]}{s.lastName[0]}</div>
@@ -410,8 +416,8 @@ export default function StudentProfile() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length===0&&<tr><td colSpan={isAdmin||isFaculty?8:7} className="sp-no-results">No students match your filters.</td></tr>}
-              {filtered.map(s=>(
+              {students.length===0&&<tr><td colSpan={isAdmin||isFaculty?8:7} className="sp-no-results">No students match your filters.</td></tr>}
+              {students.map(s=>(
                 <tr key={s.id} className="sp-table-row" onClick={()=>openDetail(s)}>
                   <td><div className="sp-table-name"><div className="sp-avatar-sm">{s.firstName[0]}{s.lastName[0]}</div><span>{s.firstName} {s.lastName}</span></div></td>
                   <td><code>{s.student_id}</code></td>
@@ -433,6 +439,13 @@ export default function StudentProfile() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {!loading && total > LIMIT && (
+        <div className="sp-pagination">
+          <button disabled={page === 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
+          <span>Page {page} of {Math.ceil(total / LIMIT)}</span>
+          <button disabled={page >= Math.ceil(total / LIMIT)} onClick={() => setPage(p => p + 1)}>Next →</button>
         </div>
       )}
 

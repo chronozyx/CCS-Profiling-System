@@ -28,40 +28,64 @@ const getFacultyProfileId = async (userId) => {
 export const getStudents = async (req, res) => {
   try {
     const { role, id: userId } = req.user;
-    const { search, program, yearLevel, skill, gender } = req.query;
+    const { search, program, yearLevel, skill, gender, page = 1, limit = 20 } = req.query;
 
-    let sql    = 'SELECT s.* FROM students s';
+    // Sanitize pagination values
+    const pageNum  = Math.max(1, parseInt(page, 10)  || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const offset   = (pageNum - 1) * limitNum;
+
+    let sql      = 'SELECT s.* FROM students s';
+    let countSql = 'SELECT COUNT(*) AS total FROM students s';
     const params = [];
 
     if (role === 'student') {
-      sql += ' WHERE s.user_id = ?';
+      const where = ' WHERE s.user_id = ?';
+      sql      += where;
+      countSql += where;
       params.push(userId);
     } else if (role === 'faculty') {
-      // JOIN through junction — faculty sees all students linked to them
-      sql += ` INNER JOIN student_faculty sf ON sf.student_id = s.id
-               INNER JOIN users u ON u.id = sf.faculty_id
-               WHERE u.id = ?`;
+      const join = ` INNER JOIN student_faculty sf ON sf.student_id = s.id
+                     INNER JOIN users u ON u.id = sf.faculty_id
+                     WHERE u.id = ?`;
+      sql      += join;
+      countSql += join;
       params.push(userId);
     } else {
-      sql += ' WHERE 1=1';
+      sql      += ' WHERE 1=1';
+      countSql += ' WHERE 1=1';
     }
 
-    // Optional filters — only for admin/faculty (student is already scoped to 1 row)
     if (role !== 'student') {
       if (search) {
-        sql += ' AND (s.first_name LIKE ? OR s.last_name LIKE ? OR s.student_id LIKE ? OR s.program LIKE ? OR s.skills LIKE ? OR s.affiliations LIKE ?)';
+        const clause = ' AND (s.first_name LIKE ? OR s.last_name LIKE ? OR s.student_id LIKE ? OR s.program LIKE ? OR s.skills LIKE ? OR s.affiliations LIKE ?)';
+        sql      += clause;
+        countSql += clause;
         const q = `%${search}%`;
         params.push(q, q, q, q, q, q);
       }
-      if (program   && program   !== 'All')       { sql += ' AND s.program = ?';              params.push(program); }
-      if (yearLevel && yearLevel !== 'All')        { sql += ' AND s.year_level = ?';           params.push(yearLevel); }
-      if (skill     && skill     !== 'All Skills') { sql += ' AND FIND_IN_SET(?, s.skills)';   params.push(skill); }
-      if (gender    && gender    !== 'All')        { sql += ' AND s.gender = ?';               params.push(gender); }
+      if (program   && program   !== 'All')       { const c = ' AND s.program = ?';            sql += c; countSql += c; params.push(program); }
+      if (yearLevel && yearLevel !== 'All')        { const c = ' AND s.year_level = ?';         sql += c; countSql += c; params.push(yearLevel); }
+      if (skill     && skill     !== 'All Skills') { const c = ' AND FIND_IN_SET(?, s.skills)'; sql += c; countSql += c; params.push(skill); }
+      if (gender    && gender    !== 'All')        { const c = ' AND s.gender = ?';             sql += c; countSql += c; params.push(gender); }
     }
 
-    sql += ' ORDER BY s.added_date DESC';
-    const [rows] = await pool.query(sql, params);
-    res.json(rows.map(format));
+    sql += ' ORDER BY s.added_date DESC LIMIT ? OFFSET ?';
+
+    // countSql shares the same params, data query needs 2 extra
+    const [[{ total }]] = await pool.query(countSql, params);
+    const [rows]        = await pool.query(sql, [...params, limitNum, offset]);
+
+    res.json({
+      data:       rows.map(format),
+      pagination: {
+        total,
+        page:      pageNum,
+        limit:     limitNum,
+        lastPage:  Math.ceil(total / limitNum),
+        hasNext:   pageNum < Math.ceil(total / limitNum),
+      },
+    });
   } catch (err) {
     console.error('[students] getStudents:', err.message);
     res.status(500).json({ message: 'Failed to fetch students' });

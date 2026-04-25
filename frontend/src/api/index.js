@@ -35,7 +35,13 @@ async function request(path, options = {}) {
 
 export const api = {
   getDashboard: () => request("/dashboard"),
-  getStudents: (p = {}) => request("/students?" + new URLSearchParams(p)),
+  getStudents: (params = {}) => {
+    const clean = Object.fromEntries(
+      Object.entries(params).filter(([, v]) => v !== undefined)
+    );
+    const query = new URLSearchParams(clean).toString();
+    return request(`/students${query ? '?' + query : ''}`);
+  },
   getStudentById: (id) => request(`/students/${id}`),
   getStudentStats: () => request("/students/stats"),
   createStudent: (b) =>

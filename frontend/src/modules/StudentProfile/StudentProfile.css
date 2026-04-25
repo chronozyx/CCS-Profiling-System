@@ -457,3 +457,41 @@
 .sp-enroll-lecture    { background:#eff6ff; color:#3b82f6; border-color:#bfdbfe; }
 .sp-enroll-laboratory { background:#faf5ff; color:#7c3aed; border-color:#ddd6fe; }
 .sp-enroll-pure       { background:#f0fdf4; color:#16a34a; border-color:#bbf7d0; }
+
+.sp-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+
+  margin-top: 20px;
+  padding: 10px 16px;
+
+  background: transparent;
+}
+
+.sp-pagination button {
+  padding: 6px 14px;
+  border: none;
+  border-radius: var(--radius-lg);  
+  background: #ef4444;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sp-pagination button:hover:not(:disabled) {
+  background: #ef4444;
+}
+
+.sp-pagination button:disabled {
+  background: #7f7f7f;
+  cursor: not-allowed;
+}
+
+.sp-pagination span {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}

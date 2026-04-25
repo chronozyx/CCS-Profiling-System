@@ -1,6 +1,5 @@
 -- CCS Profiling System — MySQL Schema
-CREATE DATABASE IF NOT EXISTS ccs_db;
-USE ccs_db;
+USE defaultdb;
 
 -- ── Users ──────────────────────────────────────────
 -- Central auth table; role drives access control
