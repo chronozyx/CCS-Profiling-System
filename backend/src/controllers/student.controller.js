@@ -70,7 +70,7 @@ export const getStudents = async (req, res) => {
       if (gender    && gender    !== 'All')        { const c = ' AND s.gender = ?';             sql += c; countSql += c; params.push(gender); }
     }
 
-    sql += ' ORDER BY s.added_date DESC LIMIT ? OFFSET ?';
+    sql += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
 
     // countSql shares the same params, data query needs 2 extra
     const [[{ total }]] = await pool.query(countSql, params);
@@ -194,7 +194,6 @@ export const updateStudent = async (req, res) => {
   }
 };
 
-// ── POST /api/students — admin only ───────────────────────────────────────
 export const createStudent = async (req, res) => {
   try {
     const b = sanitizeBody(req.body);
@@ -205,8 +204,6 @@ export const createStudent = async (req, res) => {
     const program      = requireEnum(b.program    || 'BSIT',     'Program',    PROGRAMS);
     const year_level   = requireEnum(b.year_level || '1st Year', 'Year level', YEAR_LEVELS);
     const section      = requireString(b.section, 'Section', 10);
-    // user_id is optional — only set when a user account is linked
-    const user_id      = b.user_id ? parseId(b.user_id) : null;
     const gender       = requireEnum(b.gender || 'Male', 'Gender', GENDERS);
     const middle_name  = b.middle_name ? requireString(b.middle_name, 'Middle name', 100) : '';
     const phone        = b.phone       ? requireString(b.phone,       'Phone',        20) : '';
@@ -217,10 +214,26 @@ export const createStudent = async (req, res) => {
     const affiliations = sanitizeList(b.affiliations).join(',');
     const violations   = sanitizeList(b.violations).join(',');
 
-    // faculty_ids is an array of users.id with role='faculty'
     const facultyIds = Array.isArray(b.faculty_ids)
       ? b.faculty_ids.map(Number).filter(n => Number.isInteger(n) && n > 0)
       : [];
+
+    // Auto-create a user account using student_id as login_id
+    const bcrypt = (await import('bcryptjs')).default;
+    const defaultPassword = student_id; // default password = student_id
+    const hashed = await bcrypt.hash(defaultPassword, 10);
+    const full_name = `${first_name} ${last_name}`.trim();
+
+    // Check if login_id already taken
+    const [[existingLogin]] = await pool.query('SELECT id FROM users WHERE login_id = ?', [student_id]);
+    if (existingLogin)
+      return res.status(400).json({ message: `Login ID ${student_id} is already in use` });
+
+    const [userResult] = await pool.query(
+      'INSERT INTO users (login_id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)',
+      [student_id, full_name, email, hashed, defaultPassword, 'student']
+    );
+    const user_id = userResult.insertId;
 
     const [result] = await pool.query(
       `INSERT INTO students
@@ -232,10 +245,15 @@ export const createStudent = async (req, res) => {
     );
     const newStudentId = result.insertId;
 
-    // Insert junction rows for each assigned faculty
     if (facultyIds.length) {
       const vals = facultyIds.map(fid => [newStudentId, fid]);
       await pool.query('INSERT IGNORE INTO student_faculty (student_id, faculty_id) VALUES ?', [vals]);
+    }
+
+    if (Array.isArray(b.schedule_ids) && b.schedule_ids.length) {
+      const schedVals = b.schedule_ids.map(Number).filter(n => n > 0).map(sid => [newStudentId, sid]);
+      if (schedVals.length)
+        await pool.query('INSERT IGNORE INTO enrollments (student_id, schedule_id) VALUES ?', [schedVals]);
     }
 
     const [rows] = await pool.query('SELECT * FROM students WHERE id = ?', [newStudentId]);
@@ -251,8 +269,17 @@ export const createStudent = async (req, res) => {
 export const deleteStudent = async (req, res) => {
   try {
     const id = parseId(req.params.id);
-    const [result] = await pool.query('DELETE FROM students WHERE id = ?', [id]);
-    if (!result.affectedRows) return res.status(404).json({ message: 'Student not found' });
+    // Get the linked user_id before deleting
+    const [[student]] = await pool.query('SELECT user_id FROM students WHERE id = ?', [id]);
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    await pool.query('DELETE FROM students WHERE id = ?', [id]);
+
+    // Also delete the linked user account (if any)
+    if (student.user_id) {
+      await pool.query('DELETE FROM users WHERE id = ?', [student.user_id]);
+    }
+
     res.json({ message: 'Student deleted' });
   } catch (err) {
     res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to delete student' });

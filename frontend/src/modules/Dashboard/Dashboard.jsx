@@ -5,7 +5,7 @@ import { api } from '../../api/index.js';
 import Loader from '../../components/Loader.jsx';
 import {
   FaUserGraduate, FaChalkboardTeacher, FaCalendarAlt,
-  FaClock, FaSearch, FaTrophy,
+  FaClock, FaSearch, FaTrophy, FaFlask, FaBook, FaDoorOpen,
 } from 'react-icons/fa';
 import { MdPeople, MdHistory } from 'react-icons/md';
 
@@ -150,6 +150,7 @@ function GlobalSearch() {
   const go = (path) => { setOpen(false); setQuery(''); navigate(path); };
   const total = results
     ? (results.students?.length || 0) + (results.faculty?.length || 0) + (results.events?.length || 0)
+      + (results.research?.length || 0) + (results.subjects?.length || 0) + (results.rooms?.length || 0)
     : 0;
 
   return (
@@ -158,7 +159,7 @@ function GlobalSearch() {
         <FaSearch className="gs-icon" />
         <input
           className="gs-input"
-          placeholder="Search students, faculty, events…"
+          placeholder="Search students, faculty, events, research…"
           value={query}
           onChange={e => setQuery(e.target.value)}
           onFocus={() => query && setOpen(true)}
@@ -224,6 +225,60 @@ function GlobalSearch() {
                       <div>
                         <div className="gs-item-name">{e.title}</div>
                         <div className="gs-item-sub">{e.type} · {e.status}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {results.research?.length > 0 && (
+                <div className="gs-section">
+                  <div className="gs-section-label gs-section-label--link" onClick={() => go('/research')}>
+                    <FaFlask size={11} /> Research
+                    <span className="gs-see-all">See all →</span>
+                  </div>
+                  {results.research.map((r, i) => (
+                    <div key={i} className="gs-item" onClick={() => go('/research')}>
+                      <div className="gs-item-avatar gs-item-avatar--event"><FaFlask size={13} /></div>
+                      <div>
+                        <div className="gs-item-name">{r.title.length > 50 ? r.title.slice(0, 50) + '…' : r.title}</div>
+                        <div className="gs-item-sub">{r.category}{r.year_published ? ` · ${r.year_published}` : ''}{r.authors ? ` · ${r.authors}` : ''}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {results.subjects?.length > 0 && (
+                <div className="gs-section">
+                  <div className="gs-section-label gs-section-label--link" onClick={() => go('/scheduling')}>
+                    <FaBook size={11} /> Subjects
+                    <span className="gs-see-all">See all →</span>
+                  </div>
+                  {results.subjects.map((s, i) => (
+                    <div key={i} className="gs-item" onClick={() => go('/scheduling')}>
+                      <div className="gs-item-avatar gs-item-avatar--event"><FaBook size={13} /></div>
+                      <div>
+                        <div className="gs-item-name">{s.code} — {s.title}</div>
+                        <div className="gs-item-sub">{s.type} · {s.units} units</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {results.rooms?.length > 0 && (
+                <div className="gs-section">
+                  <div className="gs-section-label gs-section-label--link" onClick={() => go('/rooms')}>
+                    <FaDoorOpen size={11} /> Rooms
+                    <span className="gs-see-all">See all →</span>
+                  </div>
+                  {results.rooms.map((r, i) => (
+                    <div key={i} className="gs-item" onClick={() => go('/rooms')}>
+                      <div className="gs-item-avatar gs-item-avatar--event"><FaDoorOpen size={13} /></div>
+                      <div>
+                        <div className="gs-item-name">{r.room_id} — {r.name}</div>
+                        <div className="gs-item-sub">{r.type} · Capacity: {r.capacity}</div>
                       </div>
                     </div>
                   ))}

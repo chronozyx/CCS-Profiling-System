@@ -11,7 +11,7 @@ export const getFaculty = async (_req, res) => {
       `SELECT id, employee_id, first_name, last_name, title, department,
               email, phone, specialization, employment_status,
               min_load, max_load, current_load, created_at
-       FROM faculty ORDER BY last_name`
+       FROM faculty ORDER BY created_at DESC`
     );
     res.json(rows);
   } catch (err) {
@@ -96,13 +96,29 @@ export const createFaculty = async (req, res) => {
     if (min_load > max_load)
       return res.status(400).json({ message: 'Min load cannot exceed max load' });
 
+    // Check if login_id (employee_id) already taken
+    const [[existingLogin]] = await pool.query('SELECT id FROM users WHERE login_id = ?', [employee_id]);
+    if (existingLogin)
+      return res.status(400).json({ message: `Login ID ${employee_id} is already in use` });
+
+    // Auto-create a user account using employee_id as login_id
+    const bcrypt = (await import('bcryptjs')).default;
+    const defaultPassword = employee_id;
+    const hashed = await bcrypt.hash(defaultPassword, 10);
+    const full_name = `${first_name} ${last_name}`.trim();
+
+    const [userResult] = await pool.query(
+      'INSERT INTO users (login_id, name, email, password, plain_password, role) VALUES (?, ?, ?, ?, ?, ?)',
+      [employee_id, full_name, email, hashed, defaultPassword, 'faculty']
+    );
+    const user_id = userResult.insertId;
+
     const [result] = await pool.query(
       `INSERT INTO faculty
         (user_id,employee_id,first_name,last_name,title,department,email,phone,
          specialization,employment_status,min_load,max_load,current_load)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [b.user_id ? Number(b.user_id) : null,
-       employee_id, first_name, last_name, title, department, email,
+      [user_id, employee_id, first_name, last_name, title, department, email,
        phone, specialization, employment_status, min_load, max_load, current_load]
     );
     const [rows] = await pool.query('SELECT * FROM faculty WHERE id = ?', [result.insertId]);
@@ -153,8 +169,16 @@ export const updateFaculty = async (req, res) => {
 export const deleteFaculty = async (req, res) => {
   try {
     const id = parseId(req.params.id);
-    const [result] = await pool.query('DELETE FROM faculty WHERE id = ?', [id]);
-    if (!result.affectedRows) return res.status(404).json({ message: 'Faculty not found' });
+    const [[faculty]] = await pool.query('SELECT user_id FROM faculty WHERE id = ?', [id]);
+    if (!faculty) return res.status(404).json({ message: 'Faculty not found' });
+
+    await pool.query('DELETE FROM faculty WHERE id = ?', [id]);
+
+    // Also delete the linked user account (if any)
+    if (faculty.user_id) {
+      await pool.query('DELETE FROM users WHERE id = ?', [faculty.user_id]);
+    }
+
     res.json({ message: 'Faculty deleted' });
   } catch (err) {
     res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to delete faculty' });

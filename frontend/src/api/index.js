@@ -96,6 +96,7 @@ export const api = {
   getAuditLogs:  (p = {}) => request('/audit?' + new URLSearchParams(p)),
   getAuditStats: ()        => request('/audit/stats'),
   clearOldLogs:  (days)    => request(`/audit/old?days=${days}`, { method: 'DELETE' }),
+  clearAllLogs:  ()        => request('/audit/all', { method: 'DELETE' }),
 
   // Global search — single endpoint, role-scoped on backend
   search: (q) => request(`/search?q=${encodeURIComponent(q)}`),

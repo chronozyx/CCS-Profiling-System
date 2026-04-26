@@ -47,6 +47,48 @@ function StatCard({ label, value, icon: Icon, color }) {
   );
 }
 
+// ── Delete All Modal ───────────────────────────────────────────────────────
+function DeleteAllModal({ onClose, onDeleted }) {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleConfirm = async () => {
+    setDeleting(true);
+    try {
+      const res = await api.clearAllLogs();
+      onDeleted(res.message || `Deleted ${res.deleted} log entries.`);
+      onClose();
+    } catch (e) {
+      alert('Failed: ' + e.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="al-modal-overlay" onClick={onClose}>
+      <div className="al-modal" onClick={e => e.stopPropagation()}>
+        <div className="al-modal-header">
+          <div className="al-modal-icon" style={{ background: '#fef2f2', color: '#ef4444' }}><FaTrash size={20} /></div>
+          <h3>Delete All Logs</h3>
+          <button className="al-modal-close" onClick={onClose}><FaTimes /></button>
+        </div>
+        <div className="al-modal-body">
+          <p className="al-modal-desc">
+            This will permanently delete <strong>every</strong> audit log entry.
+            This action <strong>cannot be undone</strong>.
+          </p>
+        </div>
+        <div className="al-modal-actions">
+          <button className="al-btn-cancel" onClick={onClose} disabled={deleting}>Cancel</button>
+          <button className="al-btn-confirm-delete" onClick={handleConfirm} disabled={deleting}>
+            {deleting ? 'Deleting…' : <><FaTrash size={12} /> Delete All</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Clear Logs Modal ───────────────────────────────────────────────────────
 const UNIT_OPTIONS = [
   { value: 'days',   label: 'Days',   multiplier: 1 },
@@ -144,7 +186,8 @@ export default function AuditLog() {
   const [total,   setTotal]   = useState(0);
   const [pages,   setPages]   = useState(1);
   const [tab,     setTab]     = useState('logs');   // 'logs' | 'stats'
-  const [showClearModal, setShowClearModal] = useState(false);
+  const [showClearModal,     setShowClearModal]     = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
   // Filters
   const [filterStatus, setFilterStatus] = useState('');
@@ -194,6 +237,9 @@ export default function AuditLog() {
           </button>
           <button className="al-btn-danger" onClick={handleClear} title="Clear old logs">
             <FaTrash /> Clear Old
+          </button>
+          <button className="al-btn-danger" onClick={() => setShowDeleteAllModal(true)} title="Delete all logs">
+            <FaTrash /> Delete All
           </button>
         </div>
       </div>
@@ -365,6 +411,14 @@ export default function AuditLog() {
         <ClearLogsModal
           onClose={() => setShowClearModal(false)}
           onCleared={(msg) => { alert(msg); loadLogs(); }}
+        />
+      )}
+
+      {/* Delete All Modal */}
+      {showDeleteAllModal && (
+        <DeleteAllModal
+          onClose={() => setShowDeleteAllModal(false)}
+          onDeleted={(msg) => { alert(msg); loadLogs(); }}
         />
       )}
     </div>

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAuditLogs, getAuditStats, clearOldLogs } from '../controllers/audit.controller.js';
+import { getAuditLogs, getAuditStats, clearOldLogs, clearAllLogs } from '../controllers/audit.controller.js';
 import { verifyToken, authorizeRoles } from '../middlewares/auth.middleware.js';
 
 const router = Router();
@@ -10,5 +10,6 @@ router.use(verifyToken, authorizeRoles('admin'));
 router.get('/',       getAuditLogs);
 router.get('/stats',  getAuditStats);
 router.delete('/old', clearOldLogs);
+router.delete('/all', clearAllLogs);
 
 export default router;

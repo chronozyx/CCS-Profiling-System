@@ -244,3 +244,25 @@
 .sp-pagination button:hover:not(:disabled) { background: #ef4444; }
 .sp-pagination button:disabled { background: #7f7f7f; cursor: not-allowed; }
 .sp-pagination span { font-size: .85rem; color: var(--text-secondary); font-weight: 600; }
+
+/* ── Stats row (mirrors StudentProfile sp-stat) ── */
+.sp-stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-bottom: 1.5rem;
+}
+.sp-stat {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem 1.25rem;
+  display: flex; flex-direction: column; gap: 6px;
+  transition: all .25s; box-shadow: var(--shadow-xs);
+}
+.sp-stat:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: rgba(255,107,53,.3); }
+.sp-stat-num { font-size: 1.4rem; font-weight: 800; color: var(--primary-orange); line-height: 1; }
+.sp-stat span:last-child { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-tertiary); }
+.sp-stat-highlight { border-color: rgba(255,107,53,.3); }
+/* Smaller text for long values like specialization / full name */
+.fac-stat-spec { font-size: .95rem !important; }

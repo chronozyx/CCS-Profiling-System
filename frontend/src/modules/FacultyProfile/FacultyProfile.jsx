@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './FacultyProfile.css';
 import { api } from '../../api/index.js';
@@ -48,6 +48,8 @@ export default function FacultyProfile() {
   const [filterLoad,   setFilterLoad]   = useState('All');
   const [page, setPage] = useState(1);
   const LIMIT = 20;
+  const [latestFaculty, setLatestFaculty] = useState(null);
+  const latestFacultyRef = useRef(null);
 
   // Pre-apply dept filter when navigating from dashboard
   useEffect(() => {
@@ -66,7 +68,13 @@ export default function FacultyProfile() {
         return;
       }
       const d = await api.getFaculty();
-      setFaculty(d.map(toUI));
+      const mapped = d.map(toUI);
+      setFaculty(mapped);
+      // Set latest only on first load, never overwrite after a create
+      if (!latestFacultyRef.current && mapped.length > 0) {
+        latestFacultyRef.current = mapped[0];
+        setLatestFaculty(mapped[0]);
+      }
     }
     catch(e) { setError(e.message); }
     finally { setLoading(false); }
@@ -97,6 +105,11 @@ export default function FacultyProfile() {
   const totalPages = Math.ceil(filtered.length / LIMIT);
   const paginated  = filtered.slice((page - 1) * LIMIT, page * LIMIT);
 
+  // Stats computed from all faculty (not just current page)
+  const specCount    = faculty.reduce((a, f) => { if (f.specialization) a[f.specialization] = (a[f.specialization]||0)+1; return a; }, {});
+  const topSpec      = Object.entries(specCount).sort((a,b) => b[1]-a[1])[0]?.[0] || '—';
+  const specCategories = Object.keys(specCount).length;
+
   const openCreate = ()=>{ setForm({...EMPTY}); setModalMode('create'); setShowModal(true); };
   const openEdit   = f =>{ setForm({...f}); setModalMode('edit'); setShowModal(true); };
   const openDetail = f => navigate(`/faculty/${f.id}`);
@@ -113,7 +126,10 @@ export default function FacultyProfile() {
     try {
       if(modalMode==='create') {
         const created = await api.createFaculty(toDB(form));
-        setFaculty(prev=>[toUI(created),...prev]);
+        const newFac = toUI(created);
+        setFaculty(prev=>[newFac,...prev]);
+        latestFacultyRef.current = newFac;
+        setLatestFaculty(newFac);
       } else {
         const updated = await api.updateFaculty(form.id, toDB(form));
         const ui = toUI(updated);
@@ -137,6 +153,14 @@ export default function FacultyProfile() {
         </div>
       </div>
       {error&&<div style={{background:'#fef2f2',color:'#ef4444',padding:'12px 16px',borderRadius:'10px',marginBottom:'1rem',border:'1px solid #fecaca'}}>⚠ {error}</div>}
+
+      {/* Stats row */}
+      <div className="sp-stats-row">
+        <div className="sp-stat"><span className="sp-stat-num">{faculty.length}</span><span>Total Faculty</span></div>
+        <div className="sp-stat"><span className="sp-stat-num">{specCategories}</span><span>Specializations</span></div>
+        <div className="sp-stat sp-stat-highlight"><span className="sp-stat-num fac-stat-spec">{topSpec}</span><span>Most Common Specialization</span></div>
+        <div className="sp-stat"><span className="sp-stat-num fac-stat-spec">{latestFaculty ? `${latestFaculty.title} ${latestFaculty.firstName} ${latestFaculty.lastName}` : '—'}</span><span>Latest Added</span></div>
+      </div>
       <div className="fac-filter-bar">
         <div className="fac-search-wrap">
           <FaSearch className="fac-search-icon"/>

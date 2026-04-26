@@ -93,6 +93,16 @@ export const getAuditStats = async (_req, res) => {
   }
 };
 
+export const clearAllLogs = async (_req, res) => {
+  try {
+    const [result] = await pool.query('DELETE FROM audit_logs');
+    res.json({ deleted: result.affectedRows, message: `Deleted all ${result.affectedRows} log entries` });
+  } catch (err) {
+    console.error('[audit] clearAllLogs:', err.message);
+    res.status(500).json({ message: 'Failed to clear all logs' });
+  }
+};
+
 export const clearOldLogs = async (req, res) => {
   try {
     // Keep last 90 days by default; admin can pass ?days=N

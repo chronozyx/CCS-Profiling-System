@@ -9,7 +9,9 @@
     "start": "node src/index.js",
     "seed": "node src/config/seed.js",
     "seed:admin": "node src/config/admin_seed.js",
-    "fix:schedules": "node src/config/fix_missing_schedules.js"
+    "fix:schedules": "node src/config/fix_missing_schedules.js",
+    "sync:login-ids": "node src/config/sync_login_ids.js",
+    "fix:passwords": "node src/config/fix_passwords.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

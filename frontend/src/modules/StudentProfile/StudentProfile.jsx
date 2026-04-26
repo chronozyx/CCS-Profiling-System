@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './StudentProfile.css';
 import { api } from '../../api/index.js';
@@ -233,7 +233,10 @@ export default function StudentProfile() {
 
   const [page, setPage]   = useState(1);
   const [total, setTotal] = useState(0);
+  const [latestStudent, setLatestStudent] = useState(null);
   const LIMIT = 20;
+
+  const latestStudentRef = useRef(null);
 
   const loadStudents = useCallback(async () => {
     setLoading(true); setError('');
@@ -254,6 +257,15 @@ export default function StudentProfile() {
       setStudents(res.data.map(toUI));
       setTotal(res.pagination.total);
       setSchedules(scheds);
+
+      // Only set latestStudent on initial load (no filters, page 1), never overwrite after a create
+      if (!latestStudentRef.current && page === 1 && !search && filterProgram === 'All' && filterYear === 'All' && filterSkill === 'All Skills' && filterGender === 'All') {
+        if (res.data.length > 0) {
+          const latest = toUI(res.data[0]);
+          latestStudentRef.current = latest;
+          setLatestStudent(latest);
+        }
+      }
 
       if (isStudent && res.data.length > 0) {
         navigate(`/students/${res.data[0].id}`, { replace: true });
@@ -295,7 +307,11 @@ export default function StudentProfile() {
         if (form.schedule_ids?.length) {
           await api.enrollStudent(created.id, form.schedule_ids);
         }
-        setStudents(prev=>[toUI(created),...prev]);
+        const newStudent = toUI(created);
+        setStudents(prev=>[newStudent,...prev]);
+        latestStudentRef.current = newStudent;
+        setLatestStudent(newStudent);
+        setTotal(prev => prev + 1);
       } else {
         const updated = await api.updateStudent(form.id, toDB(form));
         setStudents(prev=>prev.map(s=>s.id===form.id?toUI(updated):s));
@@ -336,7 +352,7 @@ export default function StudentProfile() {
         <div className="sp-stat"><span className="sp-stat-num">{total}</span><span>Total Students</span></div>
         <div className="sp-stat"><span className="sp-stat-num">{skillCategories}</span><span>Skill Categories</span></div>
         <div className="sp-stat sp-stat-highlight"><span className="sp-stat-num">{topSkill}</span><span>Most Common Skill</span></div>
-        <div className="sp-stat"><span className="sp-stat-num">{students[0]?students[0].firstName+' '+students[0].lastName:'—'}</span><span>Latest Added</span></div>
+        <div className="sp-stat"><span className="sp-stat-num">{latestStudent ? latestStudent.firstName+' '+latestStudent.lastName : '—'}</span><span>Latest Added</span></div>
       </div>
 
       <div className="sp-filter-bar">

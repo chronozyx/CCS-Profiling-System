@@ -80,7 +80,14 @@
   z-index: 200;
   overflow: hidden;
   animation: gs-drop .18s ease both;
+  max-height: 420px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-orange) transparent;
 }
+.gs-dropdown::-webkit-scrollbar { width: 5px; }
+.gs-dropdown::-webkit-scrollbar-track { background: transparent; }
+.gs-dropdown::-webkit-scrollbar-thumb { background: var(--primary-orange); border-radius: 99px; }
 @keyframes gs-drop {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }

@@ -127,9 +127,10 @@ async function bulkSeed() {
   try {
     console.log('🌱 Bulk seeding...');
 
-    // Pre-hash a shared password — all bulk users get login_id as plain password
-    // but we use a single bcrypt hash for speed (login_id stored as plain_password)
-    const sharedHash = await bcrypt.hash('password', 8); // low rounds for speed
+    // Pre-hash a default password for speed — we'll use per-user hashing below
+    // Each user's password = their login_id (hashed individually)
+    // For bulk speed, we batch-hash using low rounds
+    const hashPw = (pw) => bcrypt.hash(pw, 8);
 
     // ── 50 Faculty ──────────────────────────────────────────────────────────
     console.log('  → Inserting 50 faculty...');
@@ -152,7 +153,7 @@ async function bulkSeed() {
       await conn.query(
         `INSERT IGNORE INTO users (login_id,name,email,password,plain_password,role)
          VALUES (?,?,?,?,?,'faculty')`,
-        [loginId, name, email, sharedHash, pw]
+        [loginId, name, email, await hashPw(pw), pw]
       );
       const [[urow]] = await conn.query('SELECT id FROM users WHERE email=?', [email]);
       if (!urow) continue;
@@ -223,7 +224,7 @@ async function bulkSeed() {
       await conn.query(
         `INSERT IGNORE INTO users (login_id,name,email,password,plain_password,role)
          VALUES (?,?,?,?,?,'student')`,
-        [loginId, `${fn} ${ln}`, email, sharedHash, pw]
+        [loginId, `${fn} ${ln}`, email, await hashPw(pw), pw]
       );
       const [[urow]] = await conn.query('SELECT id FROM users WHERE email=?', [email]);
       if (!urow) continue;

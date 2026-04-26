@@ -242,7 +242,7 @@ body { font-family: 'Inter', 'Segoe UI', sans-serif; background: var(--bg-primar
 .main-content {
   flex: 1;
   background: linear-gradient(135deg,#fff8f5 0%,#ffe5d9 50%,#ffd4c2 100%);
-  padding: 2rem 2rem 1rem;
+  padding: 1.5rem 1.75rem 1rem;
   min-height: calc(100vh - 52px);
 }
 .dark .main-content { background: linear-gradient(135deg,#1a0f0a 0%,#2d1410 50%,#3d1a12 100%); }
