@@ -333,7 +333,7 @@ export default function StudentProfile() {
 
       {/* Stats — admin + faculty */}
       <div className="sp-stats-row">
-        <div className="sp-stat"><span className="sp-stat-num">{students.length}</span><span>Total Students</span></div>
+        <div className="sp-stat"><span className="sp-stat-num">{total}</span><span>Total Students</span></div>
         <div className="sp-stat"><span className="sp-stat-num">{skillCategories}</span><span>Skill Categories</span></div>
         <div className="sp-stat sp-stat-highlight"><span className="sp-stat-num">{topSkill}</span><span>Most Common Skill</span></div>
         <div className="sp-stat"><span className="sp-stat-num">{students[0]?students[0].firstName+' '+students[0].lastName:'—'}</span><span>Latest Added</span></div>

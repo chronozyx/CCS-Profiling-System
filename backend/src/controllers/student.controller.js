@@ -2,7 +2,7 @@ import pool from '../config/db.js';
 import { parseId, requireString, requireEmail, requireEnum, requireInt, sanitizeBody, sanitizeList } from '../middlewares/sanitize.js';
 
 const GENDERS    = ['Male', 'Female', 'Other'];
-const PROGRAMS   = ['BSIT', 'BSCS', 'BSIS'];
+const PROGRAMS   = ['BSIT', 'BSCS'];
 const YEAR_LEVELS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
 
 const parseList = (val) => (val ? val.split(',').map(s => s.trim()).filter(Boolean) : []);

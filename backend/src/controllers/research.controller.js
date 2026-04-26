@@ -2,7 +2,7 @@ import pool from '../config/db.js';
 import { parseId, requireString, requireEnum, requireInt, sanitizeBody } from '../middlewares/sanitize.js';
 
 const CATEGORIES   = ['Published', 'Ongoing', 'Presented', 'Rejected'];
-const PROGRAMS     = ['BSIT', 'BSCS', 'BSIS', 'Other'];
+const PROGRAMS     = ['BSIT', 'BSCS', 'Other'];
 const AUTHOR_TYPES = ['faculty', 'student', 'external'];
 
 export const getResearch = async (req, res) => {

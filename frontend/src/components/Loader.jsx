@@ -1,41 +1,24 @@
-export default function Loader({ size = 56, full = false, padded = false }) {
-  const containerStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '16px',
-    animation: 'ccs-fadein 0.3s ease both',
-    ...(full   ? { minHeight: '60vh' } : {}),
-    ...(padded ? { padding: '3rem' }   : {}),
-  };
-
-  const ringSize = size + 20;
-
+export default function Loader({ size = 52, full = false, padded = false }) {
   return (
-    <div style={containerStyle}>
+    <div className="ccs-loader-wrap" style={{
+      ...(full   ? { minHeight: '60vh' } : {}),
+      ...(padded ? { padding: '3rem' }   : {}),
+    }}>
       {/* Static logo — only the ring spins */}
-      <div style={{ position: 'relative', width: ringSize, height: ringSize }}>
-        {/* Spinning ring — separate element so logo stays still */}
-        <div className="ccs-loader-ring" style={{ width: ringSize, height: ringSize }} />
-        {/* Logo centered, not rotating */}
+      <div className="ccs-loader-track" style={{ width: size + 24, height: size + 24 }}>
+        <div className="ccs-loader-arc" style={{ width: size + 24, height: size + 24 }} />
         <img
           src="/ccs.png"
-          alt="CCS"
-          className="ccs-loader-img"
-          style={{
-            width: size,
-            height: size,
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-          }}
+          alt=""
+          className="ccs-loader-logo"
+          style={{ width: size, height: size }}
         />
       </div>
-      {/* Bouncing dots */}
-      <div className="ccs-loader-dots">
-        <span /><span /><span />
+
+      {/* Skeleton bar shimmer */}
+      <div className="ccs-loader-bars">
+        <div className="ccs-loader-bar" style={{ width: '120px' }} />
+        <div className="ccs-loader-bar" style={{ width: '80px', animationDelay: '.15s' }} />
       </div>
     </div>
   );

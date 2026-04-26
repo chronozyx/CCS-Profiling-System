@@ -2,108 +2,115 @@ import pool from '../config/db.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
-    console.log("--- Dashboard Debug Start ---");
-    
-    // 1. Resolve User Identity
-    const user = req.user || { role: 'admin', id: null };
-    console.log("Current User Data:", JSON.stringify(user));
-    const { role, id: userId } = user;
+    const { role, id: userId } = req.user || { role: 'admin', id: null };
 
-    // 2. Student Count (Role-Based)
+    // ── Counts ────────────────────────────────────────────────────────────
     let studentCount = 0;
     if (role === 'faculty' && userId) {
-      console.log("Running Faculty Student Count for ID:", userId);
-      const [rows] = await pool.query(
-        `SELECT COUNT(DISTINCT student_id) AS total FROM student_faculty WHERE faculty_id = ?`, 
+      const [[r]] = await pool.query(
+        'SELECT COUNT(DISTINCT student_id) AS total FROM student_faculty WHERE faculty_id = ?',
         [userId]
       );
-      studentCount = rows[0]?.total || 0;
+      studentCount = r?.total || 0;
     } else {
-      console.log("Running Admin/General Student Count");
-      const [rows] = await pool.query('SELECT COUNT(*) AS total FROM students');
-      studentCount = rows[0]?.total || 0;
+      const [[r]] = await pool.query('SELECT COUNT(*) AS total FROM students');
+      studentCount = r?.total || 0;
     }
 
-    // 3. Fetching General Counts (Safe Destructuring)
-    console.log("Fetching Faculty/Events/Schedules counts...");
-    const [fRows] = await pool.query('SELECT COUNT(*) AS total FROM faculty');
-    const [eRows] = await pool.query('SELECT COUNT(*) AS total FROM events WHERE status = ?', ['Upcoming']);
-    const [cRows] = await pool.query('SELECT COUNT(*) AS total FROM schedules');
-    
-    const fTotal = fRows[0]?.total || 0;
-    const eTotal = eRows[0]?.total || 0;
-    const cTotal = cRows[0]?.total || 0;
+    const [[fRow]] = await pool.query('SELECT COUNT(*) AS total FROM faculty');
+    const [[eRow]] = await pool.query("SELECT COUNT(*) AS total FROM events WHERE status = 'Upcoming'");
+    const [[cRow]] = await pool.query('SELECT COUNT(*) AS total FROM schedules');
 
-    // 4. Skills Logic (Fixed for Aiven/MySQL 8)
-    console.log("Fetching Skills...");
-    // Use single quotes for the empty string to avoid the 'Unknown column' error
-    const [skillRows] = await pool.query("SELECT skills FROM students WHERE skills IS NOT NULL AND skills <> ''");
-    
+    // ── Top skill ─────────────────────────────────────────────────────────
+    const [skillRows] = await pool.query(
+      "SELECT skills FROM students WHERE skills IS NOT NULL AND skills <> ''"
+    );
     let topSkill = '—';
-    if (skillRows && skillRows.length > 0) {
-      console.log(`Processing skills for ${skillRows.length} students`);
-      const allSkills = skillRows.flatMap(r => {
-        const s = r.skills || '';
-        return s.split(',').map(item => item.trim()).filter(Boolean);
-      });
-      
-      if (allSkills.length > 0) {
-        const skillCount = allSkills.reduce((a, s) => { a[s] = (a[s] || 0) + 1; return a; }, {});
-        const sortedSkills = Object.entries(skillCount).sort((a, b) => b[1] - a[1]);
-        topSkill = sortedSkills[0][0];
+    if (skillRows.length) {
+      const allSkills = skillRows.flatMap(r =>
+        (r.skills || '').split(',').map(s => s.trim()).filter(Boolean)
+      );
+      if (allSkills.length) {
+        const cnt = allSkills.reduce((a, s) => { a[s] = (a[s] || 0) + 1; return a; }, {});
+        topSkill = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0][0];
       }
     }
-    console.log("Top Skill Result:", topSkill);
 
-    // 5. Recent Students (Role-Based)
-    let recentQuery = 'SELECT first_name, last_name, program, year_level, skills FROM students ORDER BY created_at DESC LIMIT 3';
+    // ── Recent students ───────────────────────────────────────────────────
+    let recentQuery = `SELECT id, first_name, last_name, program, year_level, skills
+                       FROM students ORDER BY created_at DESC LIMIT 5`;
     let recentParams = [];
-    
     if (role === 'faculty' && userId) {
-      console.log("Applying Faculty Filter to Recent Students");
-      recentQuery = `SELECT s.first_name, s.last_name, s.program, s.year_level, s.skills
+      recentQuery = `SELECT s.id, s.first_name, s.last_name, s.program, s.year_level, s.skills
                      FROM students s
                      INNER JOIN student_faculty sf ON sf.student_id = s.id
                      WHERE sf.faculty_id = ?
-                     ORDER BY s.created_at DESC LIMIT 3`;
+                     ORDER BY s.created_at DESC LIMIT 5`;
       recentParams = [userId];
     }
-    
     const [recentStudents] = await pool.query(recentQuery, recentParams);
 
-    // 6. Top Researchers
+    // ── Top researchers ───────────────────────────────────────────────────
     const [topResearchers] = await pool.query(
-      'SELECT title, evaluation_score FROM research ORDER BY evaluation_score DESC LIMIT 3'
+      `SELECT r.title, r.evaluation_score,
+              GROUP_CONCAT(ra.author_name ORDER BY ra.id SEPARATOR ', ') AS authors
+       FROM research r
+       LEFT JOIN research_authors ra ON ra.research_id = r.id
+       WHERE r.evaluation_score > 0
+       GROUP BY r.id
+       ORDER BY r.evaluation_score DESC LIMIT 3`
     );
 
-    console.log("--- Dashboard Debug Success ---");
+    // ── Faculty distribution by department ───────────────────────────────
+    const [facDist] = await pool.query(
+      `SELECT department, COUNT(*) AS count FROM faculty GROUP BY department ORDER BY count DESC`
+    );
+    const totalFac = facDist.reduce((s, r) => s + Number(r.count), 0) || 1;
+    const facultyDistribution = facDist.map(r => ({
+      label:   r.department,
+      count:   Number(r.count),
+      percent: Math.round((Number(r.count) / totalFac) * 100),
+    }));
 
-    // 7. Final JSON Response
+    // ── Recent activity from audit logs ──────────────────────────────────
+    const [actRows] = await pool.query(
+      `SELECT a.method, a.endpoint, a.created_at, u.name AS user_name, u.role AS user_role
+       FROM audit_logs a
+       LEFT JOIN users u ON u.id = a.user_id
+       WHERE a.status = 'allowed'
+       ORDER BY a.created_at DESC LIMIT 6`
+    );
+    const recentActivity = actRows.map(r => ({
+      action:    `${r.method} ${r.endpoint}`,
+      user:      r.user_name || 'System',
+      role:      r.user_role || '—',
+      time:      r.created_at,
+    }));
+
     res.json({
-      totalStudents: studentCount,
-      totalFaculty: fTotal,
-      upcomingEvents: eTotal,
-      totalSchedules: cTotal,
+      totalStudents:       studentCount,
+      totalFaculty:        fRow?.total || 0,
+      upcomingEvents:      eRow?.total || 0,
+      totalSchedules:      cRow?.total || 0,
       topSkill,
+      facultyDistribution,
       recentStudents: recentStudents.map(s => ({
-        name: `${s.first_name} ${s.last_name}`,
-        program: s.program || 'N/A',
-        year: s.year_level || 'N/A',
-        skills: s.skills ? s.skills.split(',').map(x => x.trim()).filter(Boolean) : [],
+        id:      s.id,
+        name:    `${s.first_name} ${s.last_name}`,
+        program: s.program   || 'N/A',
+        year:    s.year_level || 'N/A',
+        skills:  s.skills ? s.skills.split(',').map(x => x.trim()).filter(Boolean) : [],
       })),
       topResearchers: topResearchers.map((r, i) => ({
-        rank: i + 1,
-        title: r.title,
-        score: r.evaluation_score,
-        authors: [],
+        rank:   i + 1,
+        title:  r.title,
+        score:  r.evaluation_score,
+        authors: r.authors ? r.authors.split(', ') : [],
       })),
+      recentActivity,
     });
-
   } catch (err) {
-    console.error(`[DASHBOARD ERROR CRITICAL]: ${err.message}`);
-    res.status(500).json({ 
-        message: 'Failed to load dashboard stats',
-        debug_info: err.message
-    });
+    console.error('[dashboard]', err.message);
+    res.status(500).json({ message: 'Failed to load dashboard stats' });
   }
 };

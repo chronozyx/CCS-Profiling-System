@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './FacultyProfile.css';
 import { api } from '../../api/index.js';
 import { useAuth, useRole } from '../../context/AuthContext.jsx';
@@ -34,6 +34,7 @@ export default function FacultyProfile() {
   const { isAdmin, isFaculty } = useRole();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [faculty, setFaculty]     = useState([]);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
@@ -42,6 +43,18 @@ export default function FacultyProfile() {
   const [modalMode, setModalMode] = useState('create');
   const [form, setForm]           = useState({...EMPTY});
   const [search, setSearch]       = useState('');
+  const [filterDept,   setFilterDept]   = useState('All');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [filterLoad,   setFilterLoad]   = useState('All');
+  const [page, setPage] = useState(1);
+  const LIMIT = 20;
+
+  // Pre-apply dept filter when navigating from dashboard
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const dept = params.get('dept');
+    if (dept) setFilterDept(dept);
+  }, [location.search]);
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
@@ -61,9 +74,28 @@ export default function FacultyProfile() {
   useEffect(()=>{ load(); },[load]);
 
   const filtered = faculty.filter(f => {
-    const q=search.toLowerCase();
-    return !q||f.firstName.toLowerCase().includes(q)||f.lastName.toLowerCase().includes(q)||f.department.toLowerCase().includes(q);
+    const q = search.toLowerCase();
+    const matchSearch = !q ||
+      f.firstName.toLowerCase().includes(q) ||
+      f.lastName.toLowerCase().includes(q) ||
+      f.department.toLowerCase().includes(q) ||
+      f.specialization.toLowerCase().includes(q) ||
+      (f.employee_id || '').toLowerCase().includes(q);
+    const matchDept   = filterDept   === 'All' || f.department === filterDept;
+    const matchStatus = filterStatus === 'All' || f.employmentStatus === filterStatus;
+    const ls = loadStatus(f.currentLoad, f.minLoad, f.maxLoad);
+    const matchLoad   = filterLoad   === 'All' || ls === filterLoad;
+    return matchSearch && matchDept && matchStatus && matchLoad;
   });
+
+  const hasFilters = search || filterDept !== 'All' || filterStatus !== 'All' || filterLoad !== 'All';
+  const clearFilters = () => { setSearch(''); setFilterDept('All'); setFilterStatus('All'); setFilterLoad('All'); setPage(1); };
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => { setPage(1); }, [search, filterDept, filterStatus, filterLoad]);
+
+  const totalPages = Math.ceil(filtered.length / LIMIT);
+  const paginated  = filtered.slice((page - 1) * LIMIT, page * LIMIT);
 
   const openCreate = ()=>{ setForm({...EMPTY}); setModalMode('create'); setShowModal(true); };
   const openEdit   = f =>{ setForm({...f}); setModalMode('edit'); setShowModal(true); };
@@ -105,17 +137,54 @@ export default function FacultyProfile() {
         </div>
       </div>
       {error&&<div style={{background:'#fef2f2',color:'#ef4444',padding:'12px 16px',borderRadius:'10px',marginBottom:'1rem',border:'1px solid #fecaca'}}>⚠ {error}</div>}
-      <div className="filter-bar" style={{marginBottom:'1.25rem'}}>
-        <div className="search-wrap" style={{flex:1}}>
-          <FaSearch/>
-          <input className="search-input" placeholder="Search by name or department…" value={search} onChange={e=>setSearch(e.target.value)}/>
+      <div className="fac-filter-bar">
+        <div className="fac-search-wrap">
+          <FaSearch className="fac-search-icon"/>
+          <input
+            className="fac-search-input"
+            placeholder="Search name, department, specialization…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && <button className="fac-clear-x" onClick={() => setSearch('')}><FaTimes/></button>}
         </div>
-        {search&&<button className="sp-clear-btn" onClick={()=>setSearch('')}><FaTimes/> Clear</button>}
+
+        <select className="fac-filter-select" value={filterDept} onChange={e => setFilterDept(e.target.value)}>
+          <option value="All">All Departments</option>
+          <option>Information Technology</option>
+          <option>Computer Science</option>
+        </select>
+
+        <select className="fac-filter-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+          <option value="All">All Status</option>
+          <option>Full-time</option>
+          <option>Part-time</option>
+        </select>
+
+        <select className="fac-filter-select" value={filterLoad} onChange={e => setFilterLoad(e.target.value)}>
+          <option value="All">All Load</option>
+          <option value="normal">Normal</option>
+          <option value="overload">Overload</option>
+          <option value="underload">Underload</option>
+        </select>
+
+        {hasFilters && (
+          <button className="fac-clear-btn" onClick={clearFilters}>
+            <FaTimes size={11}/> Clear
+          </button>
+        )}
+      </div>
+
+      <div className="fac-result-count">
+        {filtered.length === faculty.length
+          ? <>{faculty.length} faculty member{faculty.length !== 1 ? 's' : ''}</>
+          : <>Showing <strong>{filtered.length}</strong> of {faculty.length}{hasFilters && <span className="fac-filtered-label"> (filtered)</span>}</>
+        }
       </div>
       {loading&&<div className="empty-state"><Loader padded /></div>}
       <div className="faculty-grid">
         {!loading&&filtered.length===0&&<div className="empty-state">No faculty members found.</div>}
-        {filtered.map(f=>{
+        {paginated.map(f=>{
           const ls=loadStatus(f.currentLoad,f.minLoad,f.maxLoad);
           return (
             <div key={f.id} className="faculty-card">
@@ -139,6 +208,13 @@ export default function FacultyProfile() {
           );
         })}
       </div>
+      {totalPages > 1 && (
+        <div className="sp-pagination">
+          <button disabled={page === 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
+          <span>Page {page} of {totalPages}</span>
+          <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next →</button>
+        </div>
+      )}
       {showModal&&<FacultyModal mode={modalMode} form={form} ff={ff} onSubmit={handleSubmit} onClose={()=>setShowModal(false)} saving={saving}/>}
     </div>
   );

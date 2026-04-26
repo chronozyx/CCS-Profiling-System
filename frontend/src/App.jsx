@@ -5,6 +5,7 @@ import { useAuth } from './context/AuthContext.jsx';
 import { api } from './api/index.js';
 import Login from './pages/Login.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import Loader from './components/Loader.jsx';
 import {
   MdDashboard, MdPerson, MdPeople, MdSchedule,
   MdEvent, MdScience, MdBook, MdMeetingRoom,
@@ -428,9 +429,7 @@ export default function App() {
 
   if (loading) return (
     <div className="app-loading">
-      <div className="ccs-loader-ring" style={{ width: 72, height: 72 }}>
-        <img src="/ccs.png" alt="Loading…" className="ccs-loader-img" style={{ width: 56, height: 56 }} />
-      </div>
+      <Loader size={64} />
     </div>
   );
 

@@ -97,6 +97,9 @@ export const api = {
   getAuditStats: ()        => request('/audit/stats'),
   clearOldLogs:  (days)    => request(`/audit/old?days=${days}`, { method: 'DELETE' }),
 
+  // Global search — single endpoint, role-scoped on backend
+  search: (q) => request(`/search?q=${encodeURIComponent(q)}`),
+
   // Users — admin only
   getUsers:       (p = {}) => request('/users?' + new URLSearchParams(p)),
   createUser:     (b)      => request('/users',    { method: 'POST',   body: JSON.stringify(b) }),

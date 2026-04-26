@@ -47,6 +47,94 @@ function StatCard({ label, value, icon: Icon, color }) {
   );
 }
 
+// ── Clear Logs Modal ───────────────────────────────────────────────────────
+const UNIT_OPTIONS = [
+  { value: 'days',   label: 'Days',   multiplier: 1 },
+  { value: 'weeks',  label: 'Weeks',  multiplier: 7 },
+  { value: 'months', label: 'Months', multiplier: 30 },
+  { value: 'years',  label: 'Years',  multiplier: 365 },
+];
+
+function ClearLogsModal({ onClose, onCleared }) {
+  const [amount,  setAmount]  = useState(90);
+  const [unit,    setUnit]    = useState('days');
+  const [clearing, setClearing] = useState(false);
+
+  const multiplier = UNIT_OPTIONS.find(o => o.value === unit)?.multiplier || 1;
+  const totalDays  = amount * multiplier;
+
+  const handleConfirm = async () => {
+    setClearing(true);
+    try {
+      const res = await api.clearOldLogs(totalDays);
+      onCleared(res.message || `Deleted ${res.deleted} log entries.`);
+      onClose();
+    } catch (e) {
+      alert('Failed: ' + e.message);
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  return (
+    <div className="al-modal-overlay" onClick={onClose}>
+      <div className="al-modal" onClick={e => e.stopPropagation()}>
+        <div className="al-modal-header">
+          <div className="al-modal-icon"><FaTrash size={20} /></div>
+          <h3>Clear Old Logs</h3>
+          <button className="al-modal-close" onClick={onClose}><FaTimes /></button>
+        </div>
+
+        <div className="al-modal-body">
+          <p className="al-modal-desc">
+            Delete all audit log entries older than the selected period.
+            This action <strong>cannot be undone</strong>.
+          </p>
+
+          <div className="al-clear-inputs">
+            <div className="al-clear-field">
+              <label>Amount</label>
+              <input
+                type="number" min="1" max="999"
+                value={amount}
+                onChange={e => setAmount(Math.max(1, Number(e.target.value)))}
+                className="al-clear-number"
+              />
+            </div>
+            <div className="al-clear-field">
+              <label>Unit</label>
+              <div className="al-unit-group">
+                {UNIT_OPTIONS.map(o => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    className={`al-unit-btn${unit === o.value ? ' active' : ''}`}
+                    onClick={() => setUnit(o.value)}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="al-clear-summary">
+            Will delete logs older than <strong>{amount} {unit}</strong>
+            {totalDays !== amount && <> ({totalDays} days)</>}.
+          </div>
+        </div>
+
+        <div className="al-modal-actions">
+          <button className="al-btn-cancel" onClick={onClose} disabled={clearing}>Cancel</button>
+          <button className="al-btn-confirm-delete" onClick={handleConfirm} disabled={clearing}>
+            {clearing ? 'Deleting…' : <><FaTrash size={12} /> Delete Logs</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AuditLog() {
   const [logs,    setLogs]    = useState([]);
   const [stats,   setStats]   = useState(null);
@@ -56,6 +144,7 @@ export default function AuditLog() {
   const [total,   setTotal]   = useState(0);
   const [pages,   setPages]   = useState(1);
   const [tab,     setTab]     = useState('logs');   // 'logs' | 'stats'
+  const [showClearModal, setShowClearModal] = useState(false);
 
   // Filters
   const [filterStatus, setFilterStatus] = useState('');
@@ -84,14 +173,7 @@ export default function AuditLog() {
 
   useEffect(() => { tab === 'logs' ? loadLogs() : loadStats(); }, [tab, loadLogs, loadStats]);
 
-  const handleClear = async () => {
-    if (!window.confirm('Delete audit logs older than 90 days?')) return;
-    try {
-      const res = await api.clearOldLogs(90);
-      alert(res.message);
-      loadLogs();
-    } catch (e) { alert('Failed: ' + e.message); }
-  };
+  const handleClear = () => setShowClearModal(true);
 
   const resetFilters = () => { setFilterStatus(''); setFilterRole(''); setPage(1); };
 
@@ -276,6 +358,14 @@ export default function AuditLog() {
             </div>
           )}
         </>
+      )}
+
+      {/* Clear Logs Modal */}
+      {showClearModal && (
+        <ClearLogsModal
+          onClose={() => setShowClearModal(false)}
+          onCleared={(msg) => { alert(msg); loadLogs(); }}
+        />
       )}
     </div>
   );

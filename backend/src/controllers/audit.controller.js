@@ -96,7 +96,7 @@ export const getAuditStats = async (_req, res) => {
 export const clearOldLogs = async (req, res) => {
   try {
     // Keep last 90 days by default; admin can pass ?days=N
-    const days = Math.min(Math.max(parseInt(req.query.days) || 90, 7), 365);
+    const days = Math.min(Math.max(parseInt(req.query.days) || 90, 1), 365);
     const [result] = await pool.query(
       'DELETE FROM audit_logs WHERE created_at < NOW() - INTERVAL ? DAY', [days]
     );

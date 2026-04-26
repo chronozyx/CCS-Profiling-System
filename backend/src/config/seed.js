@@ -71,7 +71,7 @@ async function seed() {
       ['1000002', 'Jose',    'Reyes',    'Prof.', 'Computer Science',       'j.reyes@ccs.edu',   '09271234567', 'Software Engineering',     'Full-time', 15, 21, 15],
       ['1000003', 'Ana',     'Lim',      'Ms.',   'Information Technology', 'a.lim@ccs.edu',     '09351234567', 'Web Development',          'Part-time',  9, 12,  9],
       ['1000004', 'Carlos',  'Mendoza',  'Mr.',   'Computer Science',       'c.mendoza@ccs.edu', '09461234567', 'Cybersecurity',            'Full-time', 15, 21, 21],
-      ['1000005', 'Rosa',    'Garcia',   'Dr.',   'Information Systems',    'r.garcia@ccs.edu',  '09561234567', 'Database Systems',         'Full-time', 15, 21, 12],
+      ['1000005', 'Rosa',    'Garcia',   'Dr.',   'Computer Science',       'r.garcia@ccs.edu',  '09561234567', 'Database Systems',         'Full-time', 15, 21, 12],
     ];
     for (const [eid, fn, ln, title, dept, email, phone, spec, status, min, max, load] of facultyData) {
       const userId = await uid(email);

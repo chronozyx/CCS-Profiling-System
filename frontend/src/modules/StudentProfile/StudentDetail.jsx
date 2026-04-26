@@ -1,27 +1,25 @@
-/**
- * StudentDetail — /students/:id
- *
- * Fetches a single student by URL param, renders their full profile.
- * Replaces the old `selected` state + detail view inside StudentProfile.
- */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import './StudentProfile.css';
+import './StudentDetail.css';
 import { api } from '../../api/index.js';
 import { useRole } from '../../context/AuthContext.jsx';
+import Loader from '../../components/Loader.jsx';
 import {
   FaArrowLeft, FaEdit, FaTrash, FaUserGraduate,
   FaPhone, FaEnvelope, FaMapMarkerAlt, FaTag, FaUsers,
-  FaExclamationTriangle, FaStar, FaBook, FaTimes,
+  FaExclamationTriangle, FaStar, FaBook, FaCheckCircle,
+  FaIdCard, FaCalendarAlt, FaLayerGroup,
 } from 'react-icons/fa';
 
-import Loader from '../../components/Loader.jsx';
-
+// ── Constants ──────────────────────────────────────────────────────────────
 const SKILL_COLORS = {
   'Programming':'#3b82f6','Basketball':'#f97316','Web Development':'#8b5cf6',
   'Data Science':'#06b6d4','Volleyball':'#ec4899','Networking':'#10b981',
   'Cybersecurity':'#ef4444','UI/UX Design':'#f59e0b','Swimming':'#0ea5e9',
   'Football':'#84cc16','Mobile Development':'#a855f7',
+  'Python':'#3b82f6','Java':'#f97316','JavaScript':'#f59e0b',
+  'React':'#06b6d4','Node.js':'#10b981','C++':'#8b5cf6',
+  'Flutter':'#0ea5e9','Figma':'#ec4899','HTML':'#f97316','CSS':'#3b82f6',
 };
 const TYPE_LABEL = { LECTURE:'Lecture', LABORATORY:'Laboratory', PURE_LECTURE:'Pure Lecture' };
 const TYPE_CLASS = { LECTURE:'lecture', LABORATORY:'laboratory', PURE_LECTURE:'pure' };
@@ -47,26 +45,59 @@ const toUI = r => ({
   addedDate:    r.added_date   || '',
 });
 
-function Badge({ label, color }) {
-  const c = color || '#6b7280';
-  return <span className="skill-badge" style={{ background:c+'22', color:c, borderColor:c+'55' }}>{label}</span>;
+function formatDate(str) {
+  if (!str) return '—';
+  const d = new Date(str);
+  return isNaN(d) ? str : d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
 }
 
+// ── Sub-components ─────────────────────────────────────────────────────────
+function SkillPill({ label }) {
+  const color = SKILL_COLORS[label] || '#6b7280';
+  return (
+    <span className="sd-pill" style={{ background: color + '18', color, borderColor: color + '44' }}>
+      {label}
+    </span>
+  );
+}
+
+function InfoRow({ icon: Icon, label, value }) {
+  return (
+    <div className="sd-info-row">
+      <span className="sd-info-label">
+        {Icon && <Icon size={12} />} {label}
+      </span>
+      <span className="sd-info-value">{value || '—'}</span>
+    </div>
+  );
+}
+
+function SectionCard({ icon: Icon, title, children, accent }) {
+  return (
+    <div className={`sd-card${accent ? ' sd-card--accent' : ''}`}>
+      <div className="sd-card-header">
+        {Icon && <Icon size={14} className="sd-card-icon" />}
+        <span>{title}</span>
+      </div>
+      <div className="sd-card-body">{children}</div>
+    </div>
+  );
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────
 export default function StudentDetail() {
-  const { id }       = useParams();   // ← the :id from the URL
-  const navigate     = useNavigate();
-  const { isAdmin, isFaculty, isStudent, role } = useRole();
+  const { id }   = useParams();
+  const navigate = useNavigate();
+  const { isAdmin, isFaculty, isStudent } = useRole();
 
   const [student,     setStudent]     = useState(null);
   const [enrollments, setEnrollments] = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState('');
 
-  // Fetch student by ID from the URL param
   useEffect(() => {
     let cancelled = false;
     setLoading(true); setError('');
-
     Promise.all([
       api.getStudentById(id),
       api.getStudentEnrollments(id).catch(() => []),
@@ -76,159 +107,229 @@ export default function StudentDetail() {
         setStudent(toUI(data));
         setEnrollments(enr);
       })
-      .catch(err => {
-        if (!cancelled) setError(err.message);
-      })
+      .catch(err => { if (!cancelled) setError(err.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
-
     return () => { cancelled = true; };
-  }, [id]);  // re-runs whenever the :id in the URL changes
+  }, [id]);
 
   const handleDelete = async () => {
     if (!window.confirm('Delete this student?')) return;
-    try {
-      await api.deleteStudent(id);
-      navigate('/students', { replace: true });
-    } catch (e) { alert('Delete failed: ' + e.message); }
+    try { await api.deleteStudent(id); navigate('/students', { replace: true }); }
+    catch (e) { alert('Delete failed: ' + e.message); }
   };
 
-  if (loading) return <div className="sp-container"><Loader padded /></div>;
-  if (error)   return <div className="sp-container"><div style={{color:'#ef4444',padding:'1rem'}}>⚠ {error}</div></div>;
+  if (loading) return <div className="sd-container"><Loader full /></div>;
+  if (error)   return <div className="sd-container"><div className="sd-error">⚠ {error}</div></div>;
   if (!student) return null;
 
-  const showViolations = isAdmin || isFaculty;
-  const canEdit        = isAdmin || isFaculty;
-  const canDelete      = isAdmin;
+  const canEdit   = isAdmin || isFaculty;
+  const canDelete = isAdmin;
+  const showViol  = isAdmin || isFaculty;
+  const initials  = student.firstName[0] + student.lastName[0];
 
   return (
-    <div className="sp-container">
-      {/* Top bar */}
-      <div className="sp-detail-topbar">
-        <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-          {!isStudent && (
-            <button className="btn-back" onClick={() => navigate('/students')}>
-              <FaArrowLeft /> Back
-            </button>
-          )}
-        </div>
-        <div className="sp-detail-actions">
-          {canEdit   && (
-            <button className="btn-edit-action" onClick={() => navigate(`/students/${id}/edit`)}>
-              <FaEdit /> Edit
+    <div className="sd-container">
+
+      {/* ── Top bar ── */}
+      <div className="sd-topbar">
+        {!isStudent && (
+          <button className="sd-btn-back" onClick={() => navigate('/students')}>
+            <FaArrowLeft size={13} /> Back
+          </button>
+        )}
+        <div className="sd-topbar-actions">
+          {canEdit && (
+            <button className="sd-btn-edit" onClick={() => navigate(`/students/${id}/edit`)}>
+              <FaEdit size={13} /> Edit
             </button>
           )}
           {canDelete && (
-            <button className="btn-delete-action" onClick={handleDelete}>
-              <FaTrash /> Delete
+            <button className="sd-btn-delete" onClick={handleDelete}>
+              <FaTrash size={13} /> Delete
             </button>
           )}
         </div>
       </div>
 
-      {/* Hero banner */}
-      <div className="sp-detail-hero">
-        <div className="sp-avatar-lg">{student.firstName[0]}{student.lastName[0]}</div>
-        <div className="sp-detail-hero-info">
-          <h1>{student.firstName} {student.middleName} {student.lastName}</h1>
-          <p className="sp-detail-sub">
-            {student.student_id} &bull; {student.program} &bull; {student.yearLevel} &bull; Section {student.section}
-          </p>
-          <div className="sp-detail-badges">
-            {student.skills.map(sk => <Badge key={sk} label={sk} color={SKILL_COLORS[sk]} />)}
+      {/* ── ROW 1: Hero header ── */}
+      <div className="sd-hero">
+        <div className="sd-hero-avatar">{initials}</div>
+        <div className="sd-hero-info">
+          <h1 className="sd-hero-name">
+            {student.firstName} {student.middleName} {student.lastName}
+          </h1>
+          <div className="sd-hero-meta">
+            <span className="sd-meta-chip"><FaIdCard size={11} /> {student.student_id}</span>
+            <span className="sd-meta-chip">{student.program}</span>
+            <span className="sd-meta-chip">{student.yearLevel}</span>
+            <span className="sd-meta-chip">Section {student.section}</span>
           </div>
+          <div className="sd-hero-skills">
+            {student.skills.slice(0, 6).map(sk => <SkillPill key={sk} label={sk} />)}
+            {student.skills.length > 6 && (
+              <span className="sd-pill sd-pill--more">+{student.skills.length - 6} more</span>
+            )}
+          </div>
+        </div>
+        <div className="sd-hero-badge">
+          <span className="sd-program-badge">{student.program}</span>
         </div>
       </div>
 
-      {/* Detail cards */}
-      <div className="sp-detail-grid">
-        <div className="sp-detail-card">
-          <h3><FaUserGraduate /> {isStudent ? 'My Profile' : 'Personal Information'}</h3>
-          <div className="sp-info-list">
-            <div className="sp-info-row"><span>Age</span><strong>{student.age}</strong></div>
-            <div className="sp-info-row"><span>Gender</span><strong>{student.gender}</strong></div>
-            <div className="sp-info-row"><FaEnvelope /><span>Email</span><strong>{student.email}</strong></div>
-            <div className="sp-info-row"><FaPhone /><span>Phone</span><strong>{student.phone}</strong></div>
-            <div className="sp-info-row"><FaMapMarkerAlt /><span>Address</span><strong>{student.address}</strong></div>
-          </div>
-        </div>
+      {/* ── ROW 2: 4-column info grid ── */}
+      <div className="sd-row2">
 
-        <div className="sp-detail-card">
-          <h3><FaUserGraduate /> Academic History</h3>
-          <div className="sp-info-list">
-            <div className="sp-info-row"><span>Program</span><strong>{student.program}</strong></div>
-            <div className="sp-info-row"><span>Year Level</span><strong>{student.yearLevel}</strong></div>
-            <div className="sp-info-row"><span>Section</span><strong>{student.section}</strong></div>
-            <div className="sp-info-row"><span>Date Added</span><strong>{student.addedDate}</strong></div>
-          </div>
-        </div>
+        <SectionCard icon={FaUserGraduate} title={isStudent ? 'My Profile' : 'Personal Information'}>
+          <InfoRow icon={null}          label="Age"     value={student.age} />
+          <InfoRow icon={null}          label="Gender"  value={student.gender} />
+          <InfoRow icon={FaEnvelope}    label="Email"   value={student.email} />
+          <InfoRow icon={FaPhone}       label="Phone"   value={student.phone} />
+          <InfoRow icon={FaMapMarkerAlt} label="Address" value={student.address} />
+        </SectionCard>
 
-        <div className="sp-detail-card">
-          <h3><FaStar /> {isStudent ? 'My Skills' : 'Skills'}</h3>
-          <div className="sp-tag-list">
-            {student.skills.length
-              ? student.skills.map(sk => <Badge key={sk} label={sk} color={SKILL_COLORS[sk]} />)
-              : <span className="sp-empty">No skills listed</span>}
-          </div>
-        </div>
+        <SectionCard icon={FaBook} title="Academic History">
+          <InfoRow label="Program"    value={student.program} />
+          <InfoRow label="Year Level" value={student.yearLevel} />
+          <InfoRow label="Section"    value={student.section} />
+          <InfoRow icon={FaCalendarAlt} label="Date Added" value={formatDate(student.addedDate)} />
+        </SectionCard>
 
-        <div className="sp-detail-card">
-          <h3><FaUsers /> Affiliations</h3>
-          <div className="sp-tag-list">
-            {student.affiliations.length
-              ? student.affiliations.map(a => <span key={a} className="affil-badge">{a}</span>)
-              : <span className="sp-empty">None</span>}
-          </div>
-        </div>
+        <SectionCard icon={FaStar} title={isStudent ? 'My Skills' : 'Skills'}>
+          {student.skills.length
+            ? <div className="sd-tag-wrap">{student.skills.map(sk => <SkillPill key={sk} label={sk} />)}</div>
+            : <span className="sd-empty">No skills listed</span>}
+        </SectionCard>
 
-        <div className="sp-detail-card">
-          <h3><FaTag /> Non-Academic Activities</h3>
-          <div className="sp-tag-list">
-            {student.activities.length
-              ? student.activities.map(a => <span key={a} className="activity-badge">{a}</span>)
-              : <span className="sp-empty">None</span>}
-          </div>
-        </div>
+        <SectionCard icon={FaUsers} title="Affiliations">
+          {student.affiliations.length
+            ? (
+              <div className="sd-tag-wrap">
+                {student.affiliations.map(a => (
+                  <span key={a} className="sd-pill sd-pill--blue">{a}</span>
+                ))}
+              </div>
+            )
+            : <span className="sd-empty">No affiliations</span>}
+        </SectionCard>
 
-        {showViolations && (
-          <div className="sp-detail-card sp-violations">
-            <h3><FaExclamationTriangle /> Violations</h3>
-            {student.violations.length
-              ? <ul className="violation-list">{student.violations.map((v, i) => <li key={i}>{v}</li>)}</ul>
-              : <span className="sp-empty sp-clean">No violations on record ✓</span>}
-          </div>
-        )}
       </div>
 
-      {/* Enrolled subjects */}
-      <div className="sp-detail-card" style={{ marginTop:'1rem' }}>
-        <h3><FaBook /> {isStudent ? 'My Enrolled Subjects' : 'Enrolled Subjects'} ({enrollments.length})</h3>
-        {enrollments.length === 0
-          ? <span className="sp-empty">No subjects enrolled yet.</span>
-          : (
-            <div className="sp-enroll-table-wrap">
-              <table className="sp-enroll-table">
-                <thead>
-                  <tr><th>Code</th><th>Subject</th><th>Type</th><th>Section</th><th>Faculty</th><th>Day</th><th>Time</th><th>Room</th><th>Units</th></tr>
-                </thead>
-                <tbody>
-                  {enrollments.map(e => (
-                    <tr key={e.enrollment_id}>
-                      <td><strong>{e.code}</strong></td>
-                      <td>{e.title}</td>
-                      <td><span className={`sp-type-badge sp-type-${TYPE_CLASS[e.type] || 'lecture'}`}>{TYPE_LABEL[e.type] || e.type}</span></td>
-                      <td>{e.section}</td>
-                      <td>{e.faculty_title} {e.faculty_first} {e.faculty_last}</td>
-                      <td>{e.day}</td>
-                      <td style={{ whiteSpace:'nowrap' }}>{e.start_time}–{e.end_time}</td>
-                      <td>{e.room_code}</td>
-                      <td><strong>{e.units}</strong></td>
-                    </tr>
+      {/* ── ROW 3: Activities + Violations ── */}
+      <div className="sd-row3">
+
+        <SectionCard icon={FaTag} title="Non-Academic Activities">
+          {student.activities.length
+            ? (
+              <div className="sd-tag-wrap">
+                {student.activities.map(a => (
+                  <span key={a} className="sd-pill sd-pill--green">{a}</span>
+                ))}
+              </div>
+            )
+            : <span className="sd-empty">No activities listed</span>}
+        </SectionCard>
+
+        {showViol && (
+          <SectionCard
+            icon={student.violations.length ? FaExclamationTriangle : FaCheckCircle}
+            title="Violations"
+            accent={student.violations.length > 0}
+          >
+            {student.violations.length === 0
+              ? (
+                <div className="sd-clean">
+                  <FaCheckCircle size={16} />
+                  <span>No violations on record</span>
+                </div>
+              )
+              : (
+                <ul className="sd-violation-list">
+                  {student.violations.map((v, i) => (
+                    <li key={i} className="sd-violation-item">
+                      <FaExclamationTriangle size={11} /> {v}
+                    </li>
                   ))}
-                </tbody>
-              </table>
+                </ul>
+              )}
+          </SectionCard>
+        )}
+
+        {/* Spacer / future widget */}
+        <div className="sd-card sd-card--muted">
+          <div className="sd-card-header">
+            <FaLayerGroup size={14} className="sd-card-icon" />
+            <span>Summary</span>
+          </div>
+          <div className="sd-card-body">
+            <div className="sd-summary-grid">
+              <div className="sd-summary-item">
+                <span className="sd-summary-num">{student.skills.length}</span>
+                <span className="sd-summary-lbl">Skills</span>
+              </div>
+              <div className="sd-summary-item">
+                <span className="sd-summary-num">{student.affiliations.length}</span>
+                <span className="sd-summary-lbl">Affiliations</span>
+              </div>
+              <div className="sd-summary-item">
+                <span className="sd-summary-num">{student.activities.length}</span>
+                <span className="sd-summary-lbl">Activities</span>
+              </div>
+              <div className="sd-summary-item">
+                <span className="sd-summary-num" style={{ color: student.violations.length ? '#ef4444' : '#16a34a' }}>
+                  {student.violations.length}
+                </span>
+                <span className="sd-summary-lbl">Violations</span>
+              </div>
             </div>
-          )}
+          </div>
+        </div>
+
       </div>
+
+      {/* ── ROW 4: Enrolled Subjects ── */}
+      <div className="sd-card sd-card--full">
+        <div className="sd-card-header">
+          <FaBook size={14} className="sd-card-icon" />
+          <span>{isStudent ? 'My Enrolled Subjects' : 'Enrolled Subjects'}</span>
+          <span className="sd-card-count">{enrollments.length}</span>
+        </div>
+        <div className="sd-card-body">
+          {enrollments.length === 0
+            ? <span className="sd-empty">No subjects enrolled yet.</span>
+            : (
+              <div className="sd-table-wrap">
+                <table className="sd-table">
+                  <thead>
+                    <tr>
+                      <th>Code</th><th>Subject</th><th>Type</th><th>Section</th>
+                      <th>Faculty</th><th>Day</th><th>Time</th><th>Room</th><th>Units</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {enrollments.map(e => (
+                      <tr key={e.enrollment_id}>
+                        <td><strong className="sd-code">{e.code}</strong></td>
+                        <td>{e.title}</td>
+                        <td>
+                          <span className={`sd-type-badge sd-type-${TYPE_CLASS[e.type] || 'lecture'}`}>
+                            {TYPE_LABEL[e.type] || e.type}
+                          </span>
+                        </td>
+                        <td>{e.section}</td>
+                        <td>{e.faculty_title} {e.faculty_first} {e.faculty_last}</td>
+                        <td>{e.day}</td>
+                        <td className="sd-nowrap">{e.start_time}–{e.end_time}</td>
+                        <td>{e.room_code}</td>
+                        <td><strong>{e.units}</strong></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+        </div>
+      </div>
+
     </div>
   );
 }

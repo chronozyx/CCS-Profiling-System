@@ -161,3 +161,114 @@
 .al-mini-table td { padding:8px 10px; border-bottom:1px solid var(--border-color); color:var(--text-primary); }
 .al-mini-table tr:last-child td { border-bottom:none; }
 .al-mini-table code { font-size:.72rem; background:var(--bg-tertiary); padding:2px 5px; border-radius:4px; color:var(--text-secondary); }
+
+/* ── Clear Logs Modal ─────────────────────────────────────────────────────── */
+.al-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; backdrop-filter: blur(4px); padding: 16px;
+}
+.al-modal {
+  background: var(--bg-secondary);
+  border-radius: 18px;
+  width: 420px; max-width: 100%;
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--border-color);
+  animation: alModalIn .22s ease both;
+  overflow: hidden;
+}
+@keyframes alModalIn {
+  from { opacity: 0; transform: scale(.95) translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.al-modal-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  background: #fef2f2;
+}
+.dark .al-modal-header { background: #450a0a; }
+.al-modal-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: #ef4444; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.al-modal-header h3 { margin: 0; font-size: 1rem; font-weight: 700; color: #991b1b; flex: 1; }
+.dark .al-modal-header h3 { color: #fca5a5; }
+.al-modal-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-tertiary); font-size: 1rem;
+  display: flex; align-items: center; transition: color .15s;
+}
+.al-modal-close:hover { color: #ef4444; }
+
+.al-modal-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 16px; }
+.al-modal-desc { font-size: .875rem; color: var(--text-secondary); margin: 0; line-height: 1.5; }
+
+.al-clear-inputs { display: flex; flex-direction: column; gap: 12px; }
+.al-clear-field { display: flex; flex-direction: column; gap: 6px; }
+.al-clear-field label {
+  font-size: .75rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-tertiary);
+}
+.al-clear-number {
+  padding: 10px 14px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  font-size: 1.1rem; font-weight: 700;
+  background: var(--bg-primary); color: var(--text-primary);
+  width: 120px; font-family: inherit;
+  transition: border-color .2s;
+}
+.al-clear-number:focus { outline: none; border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,.12); }
+
+.al-unit-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.al-unit-btn {
+  padding: 8px 16px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 50px;
+  background: var(--bg-primary); color: var(--text-secondary);
+  font-size: .82rem; font-weight: 600;
+  cursor: pointer; transition: all .18s; font-family: inherit;
+}
+.al-unit-btn:hover { border-color: #ef4444; color: #ef4444; }
+.al-unit-btn.active {
+  background: #ef4444; color: #fff;
+  border-color: #ef4444;
+  box-shadow: 0 3px 10px rgba(239,68,68,.3);
+}
+
+.al-clear-summary {
+  padding: 10px 14px;
+  background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 10px; font-size: .85rem; color: #991b1b;
+}
+.dark .al-clear-summary { background: #450a0a; border-color: #7f1d1d; color: #fca5a5; }
+
+.al-modal-actions {
+  display: flex; gap: 10px;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--border-color);
+}
+.al-btn-cancel {
+  flex: 1; padding: 10px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px; background: var(--bg-primary);
+  color: var(--text-secondary); font-weight: 600;
+  cursor: pointer; transition: all .2s; font-family: inherit;
+}
+.al-btn-cancel:hover { border-color: var(--primary-orange); color: var(--primary-orange); }
+.al-btn-confirm-delete {
+  flex: 1; padding: 10px;
+  border: none; border-radius: 10px;
+  background: #ef4444; color: #fff;
+  font-weight: 700; font-size: .875rem;
+  cursor: pointer; transition: all .2s;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  font-family: inherit;
+}
+.al-btn-confirm-delete:hover { background: #dc2626; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(239,68,68,.35); }
+.al-btn-confirm-delete:disabled { opacity: .6; cursor: not-allowed; transform: none; }

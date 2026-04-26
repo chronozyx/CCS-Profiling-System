@@ -16,6 +16,7 @@ import dashboardRoutes from './routes/dashboard.routes.js';
 import auditRoutes     from './routes/audit.routes.js';
 import userRoutes      from './routes/user.routes.js';
 import subjectRoutes   from './routes/subject.routes.js';
+import searchRoutes    from './routes/search.routes.js';
 
 const app = express();
 
@@ -102,6 +103,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/audit',    auditRoutes);
 app.use('/api/users',    userRoutes);
 app.use('/api/subjects', subjectRoutes);
+app.use('/api/search',  searchRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ message: 'Not found' }));
