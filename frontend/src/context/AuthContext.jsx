@@ -51,8 +51,8 @@ export function AuthProvider({ children }) {
   const can = (module) => {
     if (!user) return false;
     if (isAdmin) return true;
-    const studentBlocked = ['dashboard', 'faculty', 'scheduling', 'events', 'research', 'instructional', 'rooms', 'audit', 'users'];
-    const facultyBlocked = ['dashboard', 'student', 'events', 'research', 'audit', 'users'];
+    const studentBlocked = ['dashboard', 'faculty', 'scheduling', 'events', 'research', 'instructional', 'rooms', 'audit', 'users', 'reports', 'faculty-report'];
+    const facultyBlocked = ['dashboard', 'student', 'events', 'research', 'audit', 'users', 'reports', 'student-report'];
     if (isStudent && studentBlocked.includes(module)) return false;
     if (isFaculty && facultyBlocked.includes(module)) return false;
     return true;

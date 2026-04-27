@@ -11,6 +11,7 @@ import {
   MdEvent, MdScience, MdBook, MdMeetingRoom,
   MdLightMode, MdDarkMode, MdLogout, MdMenu, MdClose,
   MdChevronLeft, MdChevronRight, MdSecurity, MdManageAccounts, MdLock,
+  MdAssessment,
 } from 'react-icons/md';
 import { FaShieldAlt, FaEye, FaEyeSlash } from 'react-icons/fa';
 import Dashboard      from './modules/Dashboard/Dashboard';
@@ -25,6 +26,9 @@ import Instructional  from './modules/Instructional/Instructional';
 import RoomManagement from './modules/RoomManagement/RoomManagement';
 import AuditLog       from './modules/AuditLog/AuditLog';
 import Users          from './modules/Users/Users';
+import Reports        from './modules/Reports/Reports';
+import FacultyReport  from './modules/Reports/FacultyReport';
+import StudentReport  from './modules/Reports/StudentReport';
 
 // Each nav item maps to a URL path
 const NAV_GROUPS = [
@@ -50,7 +54,10 @@ const NAV_GROUPS = [
   {
     label: 'System',
     items: [
-      { path: '/audit',        name: 'Audit Logs',   icon: MdSecurity,    roles: ['admin'] },
+      { path: '/reports',         name: 'Reports',      icon: MdAssessment,  roles: ['admin'] },
+      { path: '/faculty-report',  name: 'My Report',    icon: MdAssessment,  roles: ['faculty'] },
+      { path: '/student-report',  name: 'My Report',    icon: MdAssessment,  roles: ['student'] },
+      { path: '/audit',           name: 'Audit Logs',   icon: MdSecurity,    roles: ['admin'] },
     ],
   },
 ];
@@ -68,7 +75,10 @@ const PATH_TO_MODULE = {
   '/research':      'research',
   '/instructional': 'instructional',
   '/rooms':         'rooms',
-  '/audit':         'audit',
+  '/reports':          'reports',
+  '/faculty-report':   'faculty-report',
+  '/student-report':   'student-report',
+  '/audit':            'audit',
 };
 
 function getInitials(name = '', email = '') {
@@ -274,6 +284,9 @@ function AppShell() {
             <Route path="/instructional" element={<ProtectedRoute module="instructional"><Instructional />  </ProtectedRoute>} />
             <Route path="/rooms"         element={<ProtectedRoute module="rooms">        <RoomManagement /> </ProtectedRoute>} />
             <Route path="/audit"         element={<ProtectedRoute module="audit">        <AuditLog />       </ProtectedRoute>} />
+            <Route path="/reports"        element={<ProtectedRoute module="reports">         <Reports />        </ProtectedRoute>} />
+            <Route path="/faculty-report" element={<ProtectedRoute module="faculty-report">  <FacultyReport />  </ProtectedRoute>} />
+            <Route path="/student-report" element={<ProtectedRoute module="student-report">  <StudentReport />  </ProtectedRoute>} />
 
             {/* 404 fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -286,7 +299,7 @@ function AppShell() {
               <img src="/ccs.png" alt="CCS Logo" className="footer-logo" />
               <div>
                 <span className="footer-title">CCS Profiling System</span>
-                <span className="footer-sub">College of Computer Studies</span>
+                <span className="footer-sub">College of Computing Studies</span>
               </div>
             </div>
             <div className="footer-center">© {new Date().getFullYear()} CCS 4IT-D. All rights reserved.</div>

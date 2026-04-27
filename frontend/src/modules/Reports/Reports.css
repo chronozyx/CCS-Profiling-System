@@ -1,0 +1,54 @@
+.rpt-container { max-width: 100%; }
+
+.rpt-page-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px;
+}
+.rpt-page-header h1 { font-size: 1.6rem; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
+.rpt-subtitle { font-size: .875rem; color: var(--text-tertiary); }
+.rpt-header-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 16px; background: rgba(255,107,53,.1);
+  border: 1.5px solid rgba(255,107,53,.3); border-radius: 50px;
+  color: var(--primary-orange); font-size: .8rem; font-weight: 700;
+}
+
+/* Filter box */
+.rpt-filter-box {
+  background: var(--bg-secondary); border: 1px solid var(--border-color);
+  border-radius: 14px; padding: 16px 20px; margin-bottom: 1.5rem;
+}
+.rpt-filter-label { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); display: block; margin-bottom: 10px; }
+.rpt-filter-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.rpt-select {
+  padding: 8px 14px; border: 1.5px solid var(--border-color); border-radius: 50px;
+  font-size: .82rem; background: var(--bg-primary); color: var(--text-primary);
+  cursor: pointer; font-family: inherit; transition: border-color .2s;
+}
+.rpt-select:focus { outline: none; border-color: var(--primary-orange); }
+
+/* Cards */
+.rpt-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+
+.rpt-card {
+  background: var(--bg-secondary); border: 1px solid var(--border-color);
+  border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px;
+  box-shadow: var(--shadow-xs); transition: all .25s;
+}
+.rpt-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: rgba(255,107,53,.2); }
+
+.rpt-card-icon {
+  width: 56px; height: 56px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.rpt-card-info h3 { font-size: 1rem; font-weight: 800; color: var(--text-primary); margin-bottom: 5px; }
+.rpt-card-info p  { font-size: .82rem; color: var(--text-tertiary); line-height: 1.5; }
+
+.rpt-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 20px; border: 2px solid; border-radius: 10px;
+  background: transparent; font-weight: 700; font-size: .85rem;
+  cursor: pointer; transition: all .2s; font-family: inherit; margin-top: auto;
+}
+.rpt-btn:hover:not(:disabled) { opacity: .85; transform: translateY(-1px); }
+.rpt-btn:disabled { opacity: .5; cursor: not-allowed; }
