@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
+    "schema": "mysql -u $DB_USER -p$DB_PASSWORD -h $DB_HOST -P $DB_PORT $DB_NAME < src/config/schema.sql",
     "seed": "node src/config/seed.js",
     "seed:admin": "node src/config/admin_seed.js",
     "fix:schedules": "node src/config/fix_missing_schedules.js",
