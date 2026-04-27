@@ -15,16 +15,32 @@ async function runSchema() {
     const schemaPath = path.join(__dirname, "schema.sql");
     const schemaSQL = fs.readFileSync(schemaPath, "utf8");
 
-    // Split into individual statements (basic approach)
-    const statements = schemaSQL
+    // Remove comments and clean up the SQL
+    const cleanedSQL = schemaSQL
+      .split("\n")
+      .filter((line) => !line.trim().startsWith("--") && line.trim() !== "")
+      .join("\n")
+      .replace(/\n+/g, " ") // Replace multiple newlines with space
+      .trim();
+
+    // Split into statements by semicolon
+    const statements = cleanedSQL
       .split(";")
       .map((stmt) => stmt.trim())
-      .filter((stmt) => stmt.length > 0 && !stmt.startsWith("--"));
+      .filter((stmt) => stmt.length > 0);
 
     // Execute each statement
     for (const statement of statements) {
       if (statement.trim()) {
-        await conn.query(statement);
+        try {
+          await conn.query(statement);
+        } catch (err) {
+          console.error(
+            "❌ Error executing statement:",
+            statement.substring(0, 100) + "...",
+          );
+          throw err;
+        }
       }
     }
 
