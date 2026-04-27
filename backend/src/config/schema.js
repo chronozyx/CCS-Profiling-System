@@ -18,9 +18,21 @@ async function runSchema() {
     // Remove comments and clean up the SQL
     const cleanedSQL = schemaSQL
       .split("\n")
-      .filter((line) => !line.trim().startsWith("--") && line.trim() !== "")
-      .join("\n")
-      .replace(/\n+/g, " ") // Replace multiple newlines with space
+      .map((line) => {
+        // Remove inline comments (everything after -- or #)
+        const commentIndex = line.indexOf("--");
+        if (commentIndex !== -1) {
+          line = line.substring(0, commentIndex);
+        }
+        const hashIndex = line.indexOf("#");
+        if (hashIndex !== -1) {
+          line = line.substring(0, hashIndex);
+        }
+        return line.trim();
+      })
+      .filter((line) => line !== "")
+      .join(" ")
+      .replace(/\s+/g, " ") // Replace multiple spaces with single space
       .trim();
 
     // Split into statements by semicolon
