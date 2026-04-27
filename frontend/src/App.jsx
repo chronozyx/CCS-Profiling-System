@@ -303,7 +303,7 @@ function AppShell() {
               </div>
             </div>
             <div className="footer-center">© {new Date().getFullYear()} CCS 4IT-D. All rights reserved.</div>
-            <div className="footer-right">v.2.3</div>
+            <div className="footer-right">v.3.4</div>
           </div>
         </footer>
       </div>
