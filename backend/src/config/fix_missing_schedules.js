@@ -13,11 +13,11 @@ async function fix() {
   const conn = await pool.getConnection();
   try {
     // Resolve faculty IDs
-    const [[f2]] = await conn.query(`SELECT id FROM faculty WHERE employee_id = 'FAC-002'`); // Prof. Jose Reyes
-    const [[f5]] = await conn.query(`SELECT id FROM faculty WHERE employee_id = 'FAC-005'`); // Dr. Rosa Garcia
+    const [[f2]] = await conn.query(`SELECT id FROM faculty WHERE employee_id = '1000002'`); // Prof. Jose Reyes
+    const [[f5]] = await conn.query(`SELECT id FROM faculty WHERE employee_id = '1000005'`); // Dr. Rosa Garcia
 
     if (!f2 || !f5) {
-      console.error('❌ Faculty FAC-002 or FAC-005 not found. Run seed first.');
+      console.error('❌ Faculty 1000002 or 1000005 not found. Run seed first.');
       process.exit(1);
     }
 
